@@ -32,9 +32,28 @@ export default function SettingsPage() {
     { key: 'vinted:sale', label: 'Vinted (revente)' },
     { key: 'leboncoin:sale', label: 'Leboncoin (revente)' },
   ];
-  const setFee = (key: string, patch: Partial<{ percent: number; fixedCents: number }>) =>
-    setForm({ ...form, fees: { ...form.fees, [key]: { percent: 0, fixedCents: 0, ...form.fees[key], ...patch } } });
+  
+  const setFee = (
+  key: string,
+  patch: Partial<{ percent: number; fixedCents: number }>
+) => {
+  const current = form.fees[key] ?? {
+    percent: 0,
+    fixedCents: 0,
+  };
 
+  setForm({
+    ...form,
+    fees: {
+      ...form.fees,
+      [key]: {
+        ...current,
+        ...patch,
+        },
+      },
+    });
+  };
+  
   async function submit(e: FormEvent) {
     e.preventDefault();
     const err = await save(form);
