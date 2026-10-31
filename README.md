@@ -1,15 +1,15 @@
-# Resale Bot (V0.1)
+# Resale Bot (V0.3 — candidate)
 
 Assistant d'achat-revente : estime la valeur de revente d'articles de seconde main, calcule la rentabilité, suit achats, stock et ventes.
 
 **Les estimations ne sont jamais des bénéfices garantis.** Aucun achat n'est exécuté automatiquement.
 
 ## État : V0.2 (import manuel, analyse IA, comparables, calculateur)
-Voir `docs/V0.2-install.md` pour la mise en service (migration 0002, fonction `analyze-listing`, secret IA).
+La V0.3 ajoute les recherches sauvegardées, les filtres sur les annonces importées, un score explicable des opportunités et un centre de notifications. Voir `docs/V0.3-PR.md` pour les étapes d’intégration et les limites de cette livraison.
 
 ## Historique V0.1 (fondations)
 Disponible : authentification, navigation (latérale sur ordinateur, barre du bas sur mobile), PWA installable, tableau de bord alimenté par la base, paramètres, schéma PostgreSQL complet avec RLS, calculs de rentabilité testés.
-À venir : import et analyse IA (V0.2), opportunités et notifications (V0.3), achats et reventes (V0.4), statistiques et surveillance planifiée (V0.5).
+V0.2 : saisie manuelle, analyse IA, comparables et calculateur. V0.3 : filtres et recherches sauvegardées, score d’opportunité, classement et notifications internes. À venir : achats, inventaire et ventes réelles (V0.4), statistiques et surveillance planifiée autorisée (V0.5).
 
 ## Sources d'annonces
 Aucun connecteur automatique n'est actif. Vinted et Leboncoin ne fournissent pas d'accès public autorisé aux annonces ; le projet ne contourne ni protections, ni CAPTCHA, ni limitations. Le mode de fonctionnement prévu est l'import manuel.
