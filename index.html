@@ -9,9 +9,21 @@
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <link rel="icon" href="icon-192.png" />
     <title>Resale Bot</title>
+    <script>
+      function showErr(msg) {
+        var r = document.getElementById('root');
+        if (r) r.innerHTML = '<pre style="padding:16px;white-space:pre-wrap;color:#c4302b">' + msg + '</pre>';
+      }
+      window.addEventListener('error', function (e) {
+        showErr(e.target && e.target.src ? 'Fichier non chargé : ' + e.target.src : e.message);
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) {
+        showErr('Erreur : ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+      });
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><p style="padding:16px;font-family:sans-serif">Chargement…</p></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
