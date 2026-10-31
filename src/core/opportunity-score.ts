@@ -27,7 +27,7 @@ const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(ma
 
 /**
  * Score explicable sur 100. Il ne constitue ni une garantie de vente ni une authentification.
- * La marge est calculée avant frais tant que les frais de revente ne sont pas connus.
+ * Le prix de revente fourni doit déjà être net des frais de plateforme estimés.
  */
 export function scoreOpportunity(input: OpportunityScoreInput): OpportunityScore {
   const missing: string[] = [];
@@ -48,7 +48,7 @@ export function scoreOpportunity(input: OpportunityScoreInput): OpportunityScore
   if (profit != null && roi != null) {
     score += clamp((roi / Math.max(input.minRoiPct ?? 40, 1)) * 25, 0, 25);
     score += clamp((profit / Math.max(input.minProfitCents ?? 1000, 1)) * 15, 0, 15);
-    reasons.push(`Écart estimé après frais de plateforme configurés : ${(profit / 100).toFixed(2)} € avant frais`);
+    reasons.push(`Bénéfice estimé après frais de plateforme configurés : ${(profit / 100).toFixed(2)} € avant autres coûts éventuels`);
   }
 
   // Qualité des comparables : 25 points

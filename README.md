@@ -1,41 +1,20 @@
-# Resale Bot (V0.3 — candidate)
+# RESALE BOT — V0.3 candidate
 
-Assistant d'achat-revente : estime la valeur de revente d'articles de seconde main, calcule la rentabilité, suit achats, stock et ventes.
+Assistant d’aide à l’achat-revente : suivi des annonces, estimation, rentabilité et qualification des opportunités. Les décisions d’achat, les transactions et les publications restent manuelles.
 
-**Les estimations ne sont jamais des bénéfices garantis.** Aucun achat n'est exécuté automatiquement.
+## Statut de cette livraison
+La V0.3 ajoute les filtres sur les annonces déjà enregistrées, les recherches sauvegardées, le score d’opportunité, le classement et les notifications internes. Voir `docs/V0.3-PR.md` pour les limites et la procédure d’intégration.
 
-## État : V0.2 (import manuel, analyse IA, comparables, calculateur)
-La V0.3 ajoute les recherches sauvegardées, les filtres sur les annonces importées, un score explicable des opportunités et un centre de notifications. Voir `docs/V0.3-PR.md` pour les étapes d’intégration et les limites de cette livraison.
+L’analyse IA dépend toujours du déploiement séparé de `supabase/functions/analyze-listing`. Cette livraison ne déploie pas automatiquement cette fonction.
 
-## Historique V0.1 (fondations)
-Disponible : authentification, navigation (latérale sur ordinateur, barre du bas sur mobile), PWA installable, tableau de bord alimenté par la base, paramètres, schéma PostgreSQL complet avec RLS, calculs de rentabilité testés.
-V0.2 : saisie manuelle, analyse IA, comparables et calculateur. V0.3 : filtres et recherches sauvegardées, score d’opportunité, classement et notifications internes. À venir : achats, inventaire et ventes réelles (V0.4), statistiques et surveillance planifiée autorisée (V0.5).
+## Mode semi-automatique
+La V0.3 automatise le filtrage des annonces déjà présentes, leur qualification à la demande et les alertes internes. Elle ne collecte pas automatiquement les nouvelles annonces Vinted/Leboncoin. Une surveillance planifiée ne sera ajoutée qu'avec une API ou une source autorisée, sans contournement de protections, CAPTCHA ou limitations.
 
-## Sources d'annonces
-Aucun connecteur automatique n'est actif. Vinted et Leboncoin ne fournissent pas d'accès public autorisé aux annonces ; le projet ne contourne ni protections, ni CAPTCHA, ni limitations. Le mode de fonctionnement prévu est l'import manuel.
+## Installation et validation
+1. Appliquer les migrations `0001_init.sql`, `0002_v02.sql` puis `0003_v03.sql` dans Supabase.
+2. Configurer `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` pour le frontend.
+3. Installer les dépendances avec `npm install`.
+4. Exécuter `npm test`, `npm run typecheck` et `npm run build`.
+5. Déployer le frontend via GitHub Actions.
 
-## Installation (sans environnement local : GitHub Codespaces)
-1. Crée un projet sur supabase.com. Dans **SQL Editor**, colle et exécute `supabase/migrations/0001_init.sql`.
-2. Dans Supabase > Authentication, vérifie que l'authentification par e-mail est activée.
-3. Dans GitHub > Settings > Pages, choisis **Source : GitHub Actions**.
-4. Dans GitHub > Settings > Secrets and variables > Actions, ajoute `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` (Supabase > Project Settings > API).
-5. Pousse sur `main` : le workflow lance les tests, construit et déploie.
-
-Dans Codespaces : copie `.env.example` en `.env`, remplis les deux valeurs, puis `npm install`, `npm test`, `npm run dev`.
-
-## Sécurité
-- La clé `anon` est publique par conception ; la protection vient des politiques RLS (chaque ligne appartient à un `user_id`).
-- Les secrets (IA, Telegram, service role) ne vont jamais dans le frontend : Edge Functions ou GitHub Actions secrets uniquement.
-
-## Structure
-```
-src/core/        calculs purs et réglages (testés)
-src/pages/       écrans
-src/components/  composants
-src/hooks/       accès aux données
-supabase/migrations/  SQL versionné
-.github/workflows/    tests et déploiement
-```
-
-## Vérifications connues
-Les tests de `src/core` passent (`npm test`). Le build Vite, le typage complet et la migration SQL doivent être exécutés une première fois dans Codespaces / Supabase.
+Les secrets IA et Telegram ne doivent jamais être intégrés au frontend.
