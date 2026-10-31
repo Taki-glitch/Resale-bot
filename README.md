@@ -4,7 +4,10 @@ Assistant d'achat-revente : estime la valeur de revente d'articles de seconde ma
 
 **Les estimations ne sont jamais des bénéfices garantis.** Aucun achat n'est exécuté automatiquement.
 
-## État : V0.1 (fondations)
+## État : V0.2 (import manuel, analyse IA, comparables, calculateur)
+Voir `docs/V0.2-install.md` pour la mise en service (migration 0002, fonction `analyze-listing`, secret IA).
+
+## Historique V0.1 (fondations)
 Disponible : authentification, navigation (latérale sur ordinateur, barre du bas sur mobile), PWA installable, tableau de bord alimenté par la base, paramètres, schéma PostgreSQL complet avec RLS, calculs de rentabilité testés.
 À venir : import et analyse IA (V0.2), opportunités et notifications (V0.3), achats et reventes (V0.4), statistiques et surveillance planifiée (V0.5).
 
