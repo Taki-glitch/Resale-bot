@@ -75,7 +75,7 @@ export async function createListing(input: NewListingInput): Promise<string> {
 export async function fetchListings(): Promise<Listing[]> {
   const { data, error } = await db()
     .from('listings')
-    .select('*')
+    .select('*,product:products(category,brand,model)')
     .order('detected_at', { ascending: false })
     .limit(100);
   if (error) throw new Error(error.message);
