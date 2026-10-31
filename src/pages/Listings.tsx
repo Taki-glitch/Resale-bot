@@ -7,6 +7,8 @@ import { parseEuros } from '../core/format.ts';
 import { formatEuros } from '../core/settings.ts';
 import { errMsg } from '../lib/errors.ts';
 import type { Listing, Platform } from '../types.ts';
+import SavedSearches from '../components/SavedSearches.tsx';
+import type { ListingSearchFilters } from '../services/searches.ts';
 
 const CONDITIONS = ['Neuf avec étiquette', 'Neuf sans étiquette', 'Très bon état', 'Bon état', 'Satisfaisant', 'Inconnu'];
 const PLATFORM_LABEL: Record<Platform, string> = { vinted: 'Vinted', leboncoin: 'Leboncoin', manual: 'Manuel', other: 'Autre' };
@@ -124,6 +126,9 @@ export default function Listings() {
   const [items, setItems] = useState<Listing[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [filters, setFilters] = useState<ListingSearchFilters>({
+    keyword: '', platform: 'all', category: '', location: '', maxPrice: '',
+  });
 
   const load = useCallback(async () => {
     try {
@@ -140,9 +145,29 @@ export default function Listings() {
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold text-navy-950">Recherche d'annonces</h1>
       <p className="card text-sm text-slate-600">
-        Import manuel uniquement : aucun connecteur automatique n'est actif, car aucune source autorisée n'est configurée.
-        Les recherches enregistrées et les filtres arrivent en V0.3.
+        Import manuel uniquement : aucun connecteur automatique n'est actif. Les filtres portent sur les annonces déjà importées.
       </p>
+      <section className="card grid gap-3 sm:grid-cols-2">
+        <label className="text-sm">Mot-clé
+          <input className="input mt-1" value={filters.keyword} onChange={(e) => setFilters({ ...filters, keyword: e.target.value })} placeholder="Titre, marque…" />
+        </label>
+        <label className="text-sm">Plateforme
+          <select className="input mt-1" value={filters.platform} onChange={(e) => setFilters({ ...filters, platform: e.target.value })}>
+            <option value="all">Toutes</option><option value="vinted">Vinted</option><option value="leboncoin">Leboncoin</option><option value="manual">Manuel</option><option value="other">Autre</option>
+          </select>
+        </label>
+        <label className="text-sm">Catégorie
+          <input className="input mt-1" value={filters.category} onChange={(e) => setFilters({ ...filters, category: e.target.value })} />
+        </label>
+        <label className="text-sm">Localisation
+          <input className="input mt-1" value={filters.location} onChange={(e) => setFilters({ ...filters, location: e.target.value })} />
+        </label>
+        <label className="text-sm">Prix maximum (€)
+          <input className="input mt-1" type="number" min="0" step="0.01" value={filters.maxPrice} onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })} />
+        </label>
+        <div className="flex items-end"><button className="btn btn-ghost" type="button" onClick={() => setFilters({ keyword: '', platform: 'all', category: '', location: '', maxPrice: '' })}>Effacer les filtres</button></div>
+      </section>
+      <SavedSearches filters={filters} onApply={setFilters} />
       <button className="btn btn-primary" onClick={() => setShowForm((v) => !v)}>
         {showForm ? 'Fermer' : 'Ajouter une annonce'}
       </button>
@@ -151,7 +176,14 @@ export default function Listings() {
       {!items && !error && <p className="text-sm text-slate-500">Chargement…</p>}
       {items && items.length === 0 && <p className="text-sm text-slate-500">Aucune annonce pour l'instant.</p>}
       <div className="space-y-2">
-        {(items ?? []).map((l) => (
+        {(items ?? []).filter((l) => {
+          const q = filters.keyword.trim().toLocaleLowerCase('fr');
+          const haystack = `${l.title} ${l.description ?? ''} ${l.product?.brand ?? ''} ${l.product?.model ?? ''} ${l.product?.category ?? ''}`.toLocaleLowerCase('fr');
+          const categoryMatch = !filters.category || haystack.includes(filters.category.toLocaleLowerCase('fr'));
+          const locationMatch = !filters.location || (l.location ?? '').toLocaleLowerCase('fr').includes(filters.location.toLocaleLowerCase('fr'));
+          const priceMatch = !filters.maxPrice || (l.price_cents != null && l.price_cents <= Number(filters.maxPrice) * 100);
+          return (!q || haystack.includes(q)) && (filters.platform === 'all' || l.platform === filters.platform) && categoryMatch && locationMatch && priceMatch;
+        }).map((l) => (
           <Link key={l.id} to={`/annonce/${l.id}`} className="card block hover:border-navy-700">
             <p className="font-medium text-navy-950">{l.title}</p>
             <p className="text-sm text-slate-500">
@@ -160,6 +192,14 @@ export default function Listings() {
             </p>
           </Link>
         ))}
+        {items && items.length > 0 && items.filter((l) => {
+          const q = filters.keyword.trim().toLocaleLowerCase('fr');
+          const haystack = `${l.title} ${l.description ?? ''} ${l.product?.brand ?? ''} ${l.product?.model ?? ''} ${l.product?.category ?? ''}`.toLocaleLowerCase('fr');
+          return (!q || haystack.includes(q)) && (filters.platform === 'all' || l.platform === filters.platform)
+            && (!filters.category || haystack.includes(filters.category.toLocaleLowerCase('fr')))
+            && (!filters.location || (l.location ?? '').toLocaleLowerCase('fr').includes(filters.location.toLocaleLowerCase('fr')))
+            && (!filters.maxPrice || (l.price_cents != null && l.price_cents <= Number(filters.maxPrice) * 100));
+        }).length === 0 && <p className="text-sm text-slate-500">Aucune annonce ne correspond aux filtres.</p>}
       </div>
     </div>
   );
