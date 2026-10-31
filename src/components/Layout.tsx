@@ -1,12 +1,13 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
-  Bell, LayoutDashboard, Package, Receipt, Search, Settings, Sparkles, Tag,
+  Bell, Calculator, LayoutDashboard, Package, Receipt, Search, Settings, Sparkles, Tag,
 } from 'lucide-react';
 
 const items = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/recherche', label: 'Recherche', icon: Search },
   { to: '/opportunites', label: 'Opportunités', icon: Sparkles },
+  { to: '/calculateur', label: 'Calculateur', icon: Calculator },
   { to: '/inventaire', label: 'Inventaire', icon: Package },
   { to: '/reventes', label: 'Reventes', icon: Tag },
   { to: '/ventes', label: 'Ventes', icon: Receipt },

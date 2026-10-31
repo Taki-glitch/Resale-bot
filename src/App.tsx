@@ -6,6 +6,9 @@ import ComingSoon from './components/ComingSoon.tsx';
 import Login from './pages/Login.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import SettingsPage from './pages/SettingsPage.tsx';
+import Listings from './pages/Listings.tsx';
+import ListingDetail from './pages/ListingDetail.tsx';
+import CalculatorPage from './pages/CalculatorPage.tsx';
 
 function Guard() {
   const { session, loading } = useAuth();
@@ -32,8 +35,9 @@ export default function App() {
         <Routes>
           <Route element={<Guard />}>
             <Route index element={<Dashboard />} />
-            <Route path="recherche" element={<ComingSoon title="Recherche d'annonces" version="V0.2"
-              text="Import manuel par URL, capture d'écran ou saisie. Aucun connecteur automatique n'est actif : aucune source autorisée n'est configurée." />} />
+            <Route path="recherche" element={<Listings />} />
+            <Route path="annonce/:id" element={<ListingDetail />} />
+            <Route path="calculateur" element={<CalculatorPage />} />
             <Route path="opportunites" element={<ComingSoon title="Opportunités" version="V0.3"
               text="Classement des annonces analysées avec score sur 100." />} />
             <Route path="inventaire" element={<ComingSoon title="Inventaire" version="V0.4"
