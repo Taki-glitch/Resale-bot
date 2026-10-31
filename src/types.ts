@@ -1,3 +1,4 @@
+
 import type { Platform } from './core/listing.ts';
 import type { PriceKind } from './core/estimate.ts';
 
@@ -14,6 +15,7 @@ export interface Listing {
   condition: string | null;
   location: string | null;
   product_id: string | null;
+  product?: { category: string | null; brand: string | null; model: string | null } | null;
   status: string;
   detected_at: string;
 }

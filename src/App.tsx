@@ -9,6 +9,8 @@ import SettingsPage from './pages/SettingsPage.tsx';
 import Listings from './pages/Listings.tsx';
 import ListingDetail from './pages/ListingDetail.tsx';
 import CalculatorPage from './pages/CalculatorPage.tsx';
+import Opportunities from './pages/Opportunities.tsx';
+import Notifications from './pages/Notifications.tsx';
 
 function Guard() {
   const { session, loading } = useAuth();
@@ -38,16 +40,14 @@ export default function App() {
             <Route path="recherche" element={<Listings />} />
             <Route path="annonce/:id" element={<ListingDetail />} />
             <Route path="calculateur" element={<CalculatorPage />} />
-            <Route path="opportunites" element={<ComingSoon title="Opportunités" version="V0.3"
-              text="Classement des annonces analysées avec score sur 100." />} />
+            <Route path="opportunites" element={<Opportunities />} />
             <Route path="inventaire" element={<ComingSoon title="Inventaire" version="V0.4"
               text="Achats confirmés, statuts et suivi du stock." />} />
             <Route path="reventes" element={<ComingSoon title="Reventes" version="V0.4"
               text="Préparation des annonces de revente (publication manuelle)." />} />
             <Route path="ventes" element={<ComingSoon title="Ventes et comptabilité" version="V0.4"
               text="Ventes réelles, bénéfices obtenus, export CSV et JSON." />} />
-            <Route path="notifications" element={<ComingSoon title="Notifications" version="V0.3"
-              text="Notifications dans l'application et Telegram." />} />
+            <Route path="notifications" element={<Notifications />} />
             <Route path="parametres" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
