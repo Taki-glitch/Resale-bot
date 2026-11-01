@@ -1,6 +1,6 @@
 import { db } from './db.ts';
 import { fingerprint, parseListingUrl } from '../core/listing.ts';
-import type { Listing, ListingDetail, ComparableRow, AnalysisRow, ProductRow, Platform } from '../types.ts';
+import type { Listing, ListingDetail, ComparableRow, AnalysisRow, OpportunityRow, ProductRow, Platform } from '../types.ts';
 
 export class DuplicateListingError extends Error {
   existingId: string;
@@ -61,6 +61,7 @@ export async function createListing(input: NewListingInput): Promise<string> {
       condition: orNull(input.condition),
       location: orNull(input.location),
       content_hash: hash,
+      source_kind: 'manual',
     })
     .select('id')
     .single();
@@ -72,12 +73,12 @@ export async function createListing(input: NewListingInput): Promise<string> {
   return listing.id as string;
 }
 
-export async function fetchListings(): Promise<Listing[]> {
+export async function fetchListings(limit = 100): Promise<Listing[]> {
   const { data, error } = await db()
     .from('listings')
-    .select('*,product:products(category,brand,model)')
+    .select('*')
     .order('detected_at', { ascending: false })
-    .limit(100);
+    .limit(limit);
   if (error) throw new Error(error.message);
   return (data ?? []) as Listing[];
 }
@@ -110,11 +111,15 @@ export async function fetchListingDetail(id: string): Promise<ListingDetail> {
     .limit(1);
   if (a.error) throw new Error(a.error.message);
 
+  const o = await client.from('opportunities').select('*').eq('listing_id', id).maybeSingle();
+  if (o.error) throw new Error(o.error.message);
+
   return {
     listing: listing as Listing,
     product,
     comparables,
     analysis: ((a.data ?? [])[0] ?? null) as AnalysisRow | null,
+    opportunity: (o.data ?? null) as OpportunityRow | null,
   };
 }
 
@@ -123,4 +128,52 @@ export async function deleteListing(id: string, productId: string | null): Promi
   const { error } = await client.from('listings').delete().eq('id', id);
   if (error) throw new Error(error.message);
   if (productId) await client.from('products').delete().eq('id', productId);
+}
+
+/** Modifie une annonce et sa fiche produit. Refuse un doublon d'une AUTRE annonce. */
+export async function updateListing(id: string, productId: string | null, input: NewListingInput): Promise<void> {
+  const client = db();
+  const url = orNull(input.url);
+  const parsed = url ? parseListingUrl(url) : null;
+  const hash = fingerprint({ url, title: input.title, priceCents: input.priceCents });
+
+  const { data: dup, error: dupErr } = await client
+    .from('listings')
+    .select('id')
+    .eq('content_hash', hash)
+    .neq('id', id)
+    .limit(1);
+  if (dupErr) throw new Error(dupErr.message);
+  if (dup && dup.length > 0) throw new DuplicateListingError(dup[0].id as string);
+
+  const { error } = await client
+    .from('listings')
+    .update({
+      platform: input.platform,
+      external_id: parsed?.externalId ?? null,
+      url,
+      title: input.title.trim(),
+      description: orNull(input.description),
+      price_cents: input.priceCents,
+      condition: orNull(input.condition),
+      location: orNull(input.location),
+      content_hash: hash,
+    })
+    .eq('id', id);
+  if (error) {
+    if (error.code === '23505') throw new Error('Une autre annonce possède déjà cet identifiant.');
+    throw new Error(error.message);
+  }
+  if (productId) {
+    const p = await client
+      .from('products')
+      .update({
+        name: input.title.trim(),
+        brand: orNull(input.brand),
+        model: orNull(input.model),
+        category: orNull(input.category),
+      })
+      .eq('id', productId);
+    if (p.error) throw new Error(p.error.message);
+  }
 }
