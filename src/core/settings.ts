@@ -1,5 +1,7 @@
 import type { FeeModel } from './profitability.ts';
 import { NO_FEES } from './profitability.ts';
+import type { ScoringWeights } from './scoring.ts';
+import { DEFAULT_WEIGHTS } from './scoring.ts';
 
 /** Paramètres utilisateur, stockés en JSON dans users.settings. Montants en centimes. */
 export interface Settings {
@@ -12,6 +14,12 @@ export interface Settings {
   maxDistanceKm: number;
   /** Frais par plateforme et type de transaction, ex. "vinted:sale". À renseigner par l'utilisateur. */
   fees: Record<string, FeeModel>;
+  /** Plateforme de revente supposée par défaut pour l'évaluation (clé de `fees`). */
+  resalePlatform: string;
+  /** Coûts annexes moyens par article (livraison, emballage, préparation), en centimes. */
+  defaultOtherCostsCents: number;
+  /** Poids du score (normalisés à 100 au calcul). */
+  scoringWeights: ScoringWeights;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -24,15 +32,22 @@ export const DEFAULT_SETTINGS: Settings = {
   maxDistanceKm: 30,
   // Valeurs à 0 volontairement : les frais réels varient selon plateforme et mode de livraison.
   fees: { 'vinted:sale': { ...NO_FEES }, 'leboncoin:sale': { ...NO_FEES } },
+  resalePlatform: 'vinted',
+  defaultOtherCostsCents: 0,
+  scoringWeights: { ...DEFAULT_WEIGHTS },
 };
 
 /** Fusionne des réglages partiels (venant de la base) avec les valeurs par défaut. */
 export function mergeSettings(raw: unknown): Settings {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<Settings>;
-  return { ...DEFAULT_SETTINGS, ...r, fees: { ...DEFAULT_SETTINGS.fees, ...(r.fees ?? {}) } };
+  return {
+    ...DEFAULT_SETTINGS,
+    ...r,
+    fees: { ...DEFAULT_SETTINGS.fees, ...(r.fees ?? {}) },
+    scoringWeights: { ...DEFAULT_WEIGHTS, ...(r.scoringWeights ?? {}) },
+  };
 }
 
 export const eurosToCents = (e: number): number => Math.round(e * 100);
 export const centsToEuros = (c: number): number => c / 100;
-export const formatEuros = (cents: number): string =>
-  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
+export { formatEuros } from './format.ts';

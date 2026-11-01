@@ -9,3 +9,6 @@ export function parseEuros(input: string): number | null {
 export function formatPct(value: number | null): string {
   return value === null ? '—' : `${value.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %`;
 }
+
+export const formatEuros = (cents: number): string =>
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
