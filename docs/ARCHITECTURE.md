@@ -1,12 +1,12 @@
 # RESALE BOT — Architecture technique
 
-**Version de référence : V0.2**  
+**Version de référence : V0.3**  
 **Application :** https://taki-glitch.github.io/Resale-bot/#/  
 **Dépôt :** https://github.com/Taki-glitch/Resale-bot
 
 ## 1. Objectif
 
-RESALE BOT est un assistant d'achat-revente. Il aide l'utilisateur à saisir manuellement des annonces, à analyser les informations disponibles, à comparer des prix et à estimer une rentabilité. Il ne réalise aucun achat ni aucune publication automatiquement.
+RESALE BOT est un assistant d'achat-revente. Il aide l'utilisateur à saisir manuellement des annonces, à analyser les informations disponibles, à comparer des prix, à estimer une rentabilité et à classer les annonces selon leur potentiel (score, risque, confiance, recommandation). Il ne réalise aucun achat ni aucune publication automatiquement.
 
 ## 2. Architecture générale
 
@@ -45,11 +45,11 @@ Les versions exactes des dépendances doivent être figées par `package-lock.js
 
 | Dossier | Responsabilité |
 |---|---|
-| `src/pages/` | Pages : tableau de bord, paramètres, recherche, détail d'annonce, calculateur, connexion |
+| `src/pages/` | Pages : tableau de bord, paramètres, recherche, détail d'annonce, opportunités, notifications, calculateur, connexion |
 | `src/components/` | Composants réutilisables et vues d'analyse |
-| `src/core/` | Logique métier sans dépendance à l'interface : calculs, estimation, validation, réglages |
-| `src/hooks/` | Hooks d'authentification, paramètres et statistiques |
-| `src/services/` | Accès aux données : annonces, comparables, analyses |
+| `src/core/` | Logique métier sans dépendance à l'interface : calculs, estimation, score, évaluation, classement, réglages |
+| `src/hooks/` | Hooks d'authentification, paramètres, statistiques et notifications non lues |
+| `src/services/` | Accès aux données : annonces, comparables, analyses, opportunités, notifications |
 | `src/lib/` | Client Supabase, gestion des erreurs et images |
 | `supabase/migrations/` | Évolutions SQL versionnées |
 | `supabase/functions/` | Fonctions serveur Supabase |
@@ -67,6 +67,37 @@ Les versions exactes des dépendances doivent être figées par `package-lock.js
 7. Le moteur estime une valeur de revente et le calculateur présente les scénarios et la rentabilité.
 
 **Limite importante :** le lien Vinted/Leboncoin est conservé comme référence ; le frontend ne visite pas automatiquement l'annonce et ne récupère pas son contenu. Les données doivent être saisies par l'utilisateur. Aucun connecteur automatique n'est configuré.
+
+## 5 bis. Évaluation et opportunités (V0.3)
+
+Toute la logique est dans `src/core/` (fonctions pures, testées) :
+
+| Module | Rôle |
+|---|---|
+| `estimate.ts` | Estimation de revente à partir des comparables saisis (ventes réalisées prioritaires, 3 comparables minimum) |
+| `profitability.ts` | Frais, bénéfice net, marge, rendement, prix d'achat maximal, scénarios |
+| `scoring.ts` | Score sur 100 par critère, poids recalibrables ; **un critère non mesuré rapporte 0 point** |
+| `evaluation.ts` | Assemble estimation, rentabilité, score, risque, confiance, justification et recommandation |
+| `opportunities.ts` | Statuts, filtres, tris et règle de notification |
+
+**Recommandation** (jamais attribuée sans estimation documentée) : *Excellente affaire*, *Bonne affaire*, *Affaire intéressante sous conditions*, *Peu intéressante*, *À éviter*, ou *Non évaluable*.
+
+| Recommandation | Règle (réglages utilisateur : bénéfice minimum, rendement minimum, budget maximal) |
+|---|---|
+| À éviter | bénéfice net estimé ≤ 0, ou score < 35 |
+| Excellente | score ≥ 80, seuils atteints, bénéfice encore ≥ seuil en scénario prudent, confiance ≥ 0,6, risque non élevé, budget respecté |
+| Bonne | score ≥ 65, seuils atteints, risque non élevé, budget respecté |
+| Sous conditions | score ≥ 50 sans remplir les critères ci-dessus |
+| Peu intéressante | score 35 à 49 |
+
+**Score (poids par défaut)** : marge 30, demande 25, facilité de revente 15, fiabilité de l'annonce 15, état 10, logistique 5. Mesures actuelles :
+marge (bénéfice et rendement face aux seuils) ; demande (ventes réalisées sur 90 jours, 3 ventes minimum) ; facilité de revente (dispersion des prix observés, le délai réel n'est pas mesuré) ; fiabilité (lien, description, localisation, analyse IA, signaux de risque) ; état (état déclaré et défauts visibles). **La logistique n'est pas mesurée** (taille, poids, fragilité non saisis) : le score maximal atteignable est donc inférieur à 100.
+
+**Confiance** (0 à 1) : nombre et nature des comparables (ventes réalisées > prix affichés), réduite par la dispersion des prix. **Risque** (faible, moyen, élevé) : somme de signaux explicites (prix affichés, peu de comparables, analyse absente ou insuffisante, état inconnu, prix très inférieur au marché, perte possible en scénario prudent…), tous listés à l'écran.
+
+**Persistance** : à l'ouverture d'une fiche, l'évaluation est recalculée dans le navigateur ; elle n'est écrite dans `opportunities` que si sa *signature* a changé (pas d'écriture inutile). Le statut et la sélection choisis par l'utilisateur ne sont jamais écrasés. Une notification n'est créée qu'au passage vers « bonne » ou « excellente » affaire avec un bénéfice ≥ seuil ; la clé de déduplication (`dedup_key`) empêche les doublons.
+
+**Provenance** : `listings.source_kind` (`manual`, `import`, `authorized_source`). Seule la saisie manuelle existe aujourd'hui.
 
 ## 6. Données et sécurité
 
@@ -97,8 +128,9 @@ Les migrations SQL sont appliquées dans l'ordre numérique :
 
 1. `supabase/migrations/0001_init.sql`
 2. `supabase/migrations/0002_v02.sql`
+3. `supabase/migrations/0003_v03.sql`
 
-La fonction `analyze-listing` doit être déployée séparément avec la Supabase CLI et ses secrets configurés. Le simple fait que ses fichiers soient dans GitHub ne signifie pas qu'elle est déployée.
+La fonction `analyze-listing` doit être déployée séparément (Supabase CLI, ou éditeur du dashboard : Edge Functions → Deploy a new function → Via Editor) et ses secrets configurés. `supabase/config.toml` ne sert qu'à la CLI locale et ne configure pas le projet hébergé ; l'option « Verify JWT » de la fonction se règle dans le dashboard si la fonction est déployée par l'éditeur. Le simple fait que ses fichiers soient dans GitHub ne signifie pas qu'elle est déployée.
 
 Le déploiement du frontend est déclenché par GitHub Actions. Un commit ne sera publié que si les tests et le build réussissent.
 
