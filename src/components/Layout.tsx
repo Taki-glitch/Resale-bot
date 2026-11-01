@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useUnreadCount } from '../hooks/useUnreadCount.ts';
 import {
   Bell, Calculator, LayoutDashboard, Package, Receipt, Search, Settings, Sparkles, Tag,
 } from 'lucide-react';
@@ -16,6 +17,11 @@ const items = [
 ];
 
 export default function Layout() {
+  const unread = useUnreadCount();
+  const badge = (to: string) =>
+    to === '/notifications' && unread > 0 ? (
+      <span className="ml-auto rounded-full bg-loss px-1.5 text-[10px] font-semibold text-white">{unread}</span>
+    ) : null;
   return (
     <div className="flex h-full flex-col md:flex-row">
       {/* Navigation latérale (tablette / ordinateur) */}
@@ -34,6 +40,7 @@ export default function Layout() {
               }
             >
               <Icon size={18} /> {label}
+              {badge(to)}
             </NavLink>
           ))}
         </nav>
@@ -58,7 +65,13 @@ export default function Layout() {
               }`
             }
           >
-            <Icon size={20} /> {label}
+            <span className="relative">
+              <Icon size={20} />
+              {to === '/notifications' && unread > 0 && (
+                <span className="absolute -right-2 -top-1 rounded-full bg-loss px-1 text-[9px] font-semibold text-white">{unread}</span>
+              )}
+            </span>
+            {label}
           </NavLink>
         ))}
       </nav>

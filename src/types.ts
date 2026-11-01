@@ -1,8 +1,11 @@
-
 import type { Platform } from './core/listing.ts';
 import type { PriceKind } from './core/estimate.ts';
+import type { Recommendation, RiskLevel } from './core/evaluation.ts';
+import type { OpportunityStatus } from './core/opportunities.ts';
 
 export type { Platform, PriceKind };
+
+export type SourceKind = 'manual' | 'import' | 'authorized_source';
 
 export interface Listing {
   id: string;
@@ -15,7 +18,7 @@ export interface Listing {
   condition: string | null;
   location: string | null;
   product_id: string | null;
-  product?: { category: string | null; brand: string | null; model: string | null } | null;
+  source_kind?: SourceKind;
   status: string;
   detected_at: string;
 }
@@ -57,9 +60,37 @@ export interface AnalysisRow {
   created_at: string;
 }
 
+export interface OpportunityRow {
+  id: string;
+  listing_id: string;
+  analysis_id: string | null;
+  score: number | null;
+  score_detail: Record<string, any> | null;
+  risk_level: RiskLevel | null;
+  recommendation: Recommendation | null;
+  confidence: number | null;
+  status: OpportunityStatus;
+  is_selected: boolean;
+  est_profit_cents: number | null;
+  max_buy_cents: number | null;
+  net_margin_pct: number | null;
+  detected_at: string;
+}
+
+export interface NotificationRow {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  listing_id: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
 export interface ListingDetail {
   listing: Listing;
   product: ProductRow | null;
   comparables: ComparableRow[];
   analysis: AnalysisRow | null;
+  opportunity: OpportunityRow | null;
 }

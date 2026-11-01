@@ -11,7 +11,7 @@ npm run typecheck
 npm run build
 ```
 
-`npm ci` nécessite un `package-lock.json` cohérent avec `package.json`. Tant que ce fichier n'est pas généré, utiliser temporairement `npm install`, puis créer et committer le lockfile.
+Sans environnement local, ces commandes s'exécutent dans GitHub Codespaces ou via le workflow « CI (pull request) ». `npm ci` nécessite un `package-lock.json` cohérent avec `package.json`. Tant que ce fichier n'est pas généré, utiliser temporairement `npm install`, puis créer et committer le lockfile.
 
 ## 2. Tests automatisés existants
 
@@ -25,7 +25,10 @@ Les tests présents dans `src/core/*.test.ts` couvrent notamment :
 - détection de doublons ;
 - calcul des frais, bénéfices, marges, rendements et prix d'achat maximal ;
 - scénarios prudent, réaliste et optimiste ;
-- chargement des paramètres par défaut et fusion des paramètres partiels.
+- chargement des paramètres par défaut et fusion des paramètres partiels (dont poids de scoring) ;
+- score sur 100 : critères non mesurés à 0 point, recalibrage des poids, plafond sans données ;
+- évaluation : non évaluable sans comparables, excellente / bonne / sous conditions / à éviter, budget dépassé, risque élevé, confiance croissante avec les ventes réalisées, prix anormalement bas ou élevé, signature de persistance ;
+- opportunités : tris, filtres, historique, sélection et règle anti-répétition des notifications.
 
 Les tests métier ne remplacent pas les tests d'intégration avec Supabase.
 
@@ -74,6 +77,24 @@ Les tests métier ne remplacent pas les tests d'intégration avec Supabase.
 - [ ] Supprimer un comparable et vérifier le recalcul de l'estimation.
 - [ ] Vérifier que l'application ne présente pas une estimation comme une garantie de vente.
 
+## 6 bis. Tests manuels — évaluation, opportunités et notifications (V0.3)
+
+Prérequis : migration `0003_v03.sql` exécutée.
+
+- [ ] Ouvrir une annonce sans comparable : « Non évaluable », aucun score, message « Estimation insuffisamment documentée ».
+- [ ] Ajouter 3 comparables : l'évaluation apparaît (recommandation, score, bénéfice net, marge, prix d'achat maximal, confiance, risque, justification).
+- [ ] Vérifier que le détail du score indique les critères « non mesuré » (0 point) et que le score reste cohérent.
+- [ ] Ajouter des ventes réalisées récentes : la demande et la confiance augmentent.
+- [ ] Modifier le prix demandé (bouton « Modifier l'annonce ») : l'évaluation se met à jour.
+- [ ] Vérifier le refus d'un doublon lors de la modification vers une URL déjà enregistrée.
+- [ ] Ouvrir **Opportunités** : l'annonce apparaît ; tester les filtres, les tris, « Ma sélection », « Historique complet » et « Non évaluables ».
+- [ ] Changer le statut (ex. « Refusée ») : elle sort de la vue « En cours » et reste dans l'historique.
+- [ ] Obtenir une « bonne » ou « excellente » affaire au-dessus du bénéfice minimum : une notification apparaît ; la recharger ne la duplique pas.
+- [ ] Vérifier le compteur de notifications non lues, « Marquer comme lu » et « Tout marquer comme lu ».
+- [ ] Modifier les poids du score dans Paramètres, enregistrer, revenir sur une annonce : le score change.
+- [ ] Vérifier que le tableau de bord affiche les meilleures opportunités et les dernières annonces.
+- [ ] Vérifier la suppression d'une annonce (confirmation demandée) : l'opportunité et les notifications liées disparaissent.
+
 ## 7. Tests sécurité et isolation des données
 
 Avec deux comptes Supabase distincts :
@@ -82,7 +103,7 @@ Avec deux comptes Supabase distincts :
 - [ ] Le compte B ne voit pas l'annonce de A dans les listes.
 - [ ] Le compte B ne peut pas lire l'annonce de A en utilisant son UUID.
 - [ ] Le compte B ne peut pas modifier ou supprimer l'annonce de A.
-- [ ] Le compte B ne peut pas accéder aux comparables ou analyses de A.
+- [ ] Le compte B ne peut pas accéder aux comparables, analyses, opportunités ou notifications de A.
 - [ ] Vérifier que les appels à l'Edge Function exigent une session valide.
 - [ ] Vérifier qu'aucune clé IA ou `service_role` n'apparaît dans les fichiers JavaScript compilés ou dans le dépôt.
 

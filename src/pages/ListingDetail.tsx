@@ -1,23 +1,37 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { deleteListing, fetchListingDetail } from '../services/listings.ts';
+import { deleteListing, fetchListingDetail, updateListing } from '../services/listings.ts';
+import type { NewListingInput } from '../services/listings.ts';
+import { saveEvaluation, updateOpportunity } from '../services/opportunities.ts';
 import { addComparable, deleteComparable } from '../services/comparables.ts';
 import { runAnalysis } from '../services/analysis.ts';
 import { fileToJpegBase64 } from '../lib/images.ts';
 import { estimateResale, INSUFFICIENT_LABEL } from '../core/estimate.ts';
+import { evaluateListing } from '../core/evaluation.ts';
+import { NO_FEES } from '../core/profitability.ts';
+import { STATUS_LABEL, STATUS_ORDER } from '../core/opportunities.ts';
+import type { OpportunityStatus } from '../core/opportunities.ts';
 import { parseEuros } from '../core/format.ts';
 import { formatEuros } from '../core/settings.ts';
 import { errMsg } from '../lib/errors.ts';
 import AnalysisView from '../components/AnalysisView.tsx';
+import EvaluationCard from '../components/EvaluationCard.tsx';
+import ListingForm from '../components/ListingForm.tsx';
+import { useSettings } from '../hooks/useSettings.ts';
+import { PLATFORM_LABEL, SOURCE_KIND_LABEL } from '../lib/labels.ts';
 import ProfitCalculator from '../components/ProfitCalculator.tsx';
 import type { ListingDetail as Detail, PriceKind } from '../types.ts';
 
 export default function ListingDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { settings, loading: settingsLoading } = useSettings();
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const persisted = useRef('');
 
   const reload = useCallback(async () => {
     if (!id) return;
@@ -37,17 +51,84 @@ export default function ListingDetail() {
     [detail],
   );
 
+  const evaluation = useMemo(() => {
+    if (!detail) return null;
+    const { listing, comparables, analysis } = detail;
+    return evaluateListing({
+      listing: {
+        priceCents: listing.price_cents,
+        condition: listing.condition,
+        description: listing.description,
+        url: listing.url,
+        location: listing.location,
+      },
+      comparables: comparables.map((c) => ({ priceCents: c.price_cents, kind: c.price_kind, observedAt: c.observed_at })),
+      analysis: analysis
+        ? {
+            confidence: analysis.confidence,
+            sufficientData: analysis.sufficient_data,
+            visibleDefects: analysis.details?.condition?.visible_defects ?? [],
+            riskFlags: analysis.details?.risk_flags ?? [],
+          }
+        : null,
+      settings: {
+        minProfitCents: settings.minProfitCents,
+        minRoiPct: settings.minRoiPct,
+        maxPerItemCents: settings.maxPerItemCents,
+        fee: settings.fees[`${settings.resalePlatform}:sale`] ?? NO_FEES,
+        otherCostsCents: settings.defaultOtherCostsCents,
+        weights: settings.scoringWeights,
+      },
+    });
+  }, [detail, settings]);
+
+  // Enregistre l'évaluation (classement des opportunités) uniquement si elle a changé.
+  useEffect(() => {
+    if (!detail || !evaluation || settingsLoading) return;
+    if (detail.opportunity?.score_detail?.signature === evaluation.signature) return;
+    if (persisted.current === evaluation.signature) return;
+    persisted.current = evaluation.signature;
+    saveEvaluation({
+      listingId: detail.listing.id,
+      listingTitle: detail.listing.title,
+      analysisId: detail.analysis?.id ?? null,
+      evaluation,
+      minProfitCents: settings.minProfitCents,
+    })
+      .then((opp) => {
+        setSaveError(null);
+        setDetail((d) => (d ? { ...d, opportunity: opp } : d));
+      })
+      .catch((e) => setSaveError(errMsg(e)));
+  }, [detail, evaluation, settingsLoading, settings.minProfitCents]);
+
   if (error) return <p className="text-sm text-loss">{error}</p>;
-  if (!detail) return <p className="text-sm text-slate-500">Chargement…</p>;
-  const { listing, product, comparables, analysis } = detail;
+  if (!detail || !evaluation) return <p className="text-sm text-slate-500">Chargement…</p>;
+  const { listing, product, comparables, analysis, opportunity } = detail;
 
   async function remove() {
-    if (!window.confirm('Supprimer cette annonce et ses comparables ?')) return;
+    if (!window.confirm('Supprimer cette annonce, ses comparables et son évaluation ? Cette action est définitive.')) return;
     try {
       await deleteListing(listing.id, listing.product_id);
       navigate('/recherche');
     } catch (e) {
       setError(errMsg(e));
+    }
+  }
+
+  async function saveEdit(input: NewListingInput) {
+    await updateListing(listing.id, listing.product_id, input);
+    setEditing(false);
+    await reload();
+  }
+
+  async function changeOpportunity(patch: { status?: OpportunityStatus; is_selected?: boolean }) {
+    if (!opportunity) return;
+    try {
+      await updateOpportunity(opportunity.id, patch);
+      setDetail((d) => (d && d.opportunity ? { ...d, opportunity: { ...d.opportunity, ...patch } } : d));
+    } catch (e) {
+      setSaveError(errMsg(e));
     }
   }
 
@@ -57,10 +138,11 @@ export default function ListingDetail() {
         <Link to="/recherche" className="text-sm text-slate-500 underline">← Annonces</Link>
         <h1 className="mt-1 text-2xl font-semibold text-navy-950">{listing.title}</h1>
         <p className="text-sm text-slate-600">
-          {listing.platform} · {listing.price_cents == null ? 'prix inconnu' : formatEuros(listing.price_cents)}
+          {PLATFORM_LABEL[listing.platform]} · {listing.price_cents == null ? 'prix inconnu' : formatEuros(listing.price_cents)}
           {listing.condition ? ` · ${listing.condition}` : ''}
           {listing.location ? ` · ${listing.location}` : ''}
         </p>
+        <p className="text-xs text-slate-500">Provenance des informations : {SOURCE_KIND_LABEL[listing.source_kind ?? 'manual']}</p>
         {listing.url && (
           <a className="text-sm underline" href={listing.url} target="_blank" rel="noopener noreferrer">
             Ouvrir l'annonce d'origine
@@ -71,7 +153,58 @@ export default function ListingDetail() {
             Produit : {[product.brand, product.model, product.category].filter(Boolean).join(' · ')}
           </p>
         )}
+        <div className="mt-2">
+          <button className="btn btn-ghost" onClick={() => setEditing((v) => !v)}>
+            {editing ? 'Fermer la modification' : "Modifier l'annonce"}
+          </button>
+        </div>
       </div>
+
+      {editing && (
+        <ListingForm
+          initial={{
+            platform: listing.platform,
+            url: listing.url ?? '',
+            title: listing.title,
+            price: listing.price_cents == null ? '' : String(listing.price_cents / 100).replace('.', ','),
+            condition: listing.condition ?? 'Inconnu',
+            description: listing.description ?? '',
+            location: listing.location ?? '',
+            brand: product?.brand ?? '',
+            model: product?.model ?? '',
+            category: product?.category ?? '',
+          }}
+          heading="Modifier l'annonce"
+          submitLabel="Enregistrer les modifications"
+          onSubmit={saveEdit}
+          onCancel={() => setEditing(false)}
+        />
+      )}
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-navy-950">Évaluation</h2>
+        <EvaluationCard ev={evaluation} />
+        {opportunity && (
+          <div className="card flex flex-wrap items-end gap-3">
+            <div>
+              <label className="label">Statut de l'opportunité</label>
+              <select
+                className="input"
+                value={opportunity.status}
+                onChange={(e) => void changeOpportunity({ status: e.target.value as OpportunityStatus })}
+              >
+                {STATUS_ORDER.map((st) => (
+                  <option key={st} value={st}>{STATUS_LABEL[st]}</option>
+                ))}
+              </select>
+            </div>
+            <button className="btn btn-ghost" onClick={() => void changeOpportunity({ is_selected: !opportunity.is_selected })}>
+              {opportunity.is_selected ? 'Retirer de ma sélection' : 'Ajouter à ma sélection'}
+            </button>
+          </div>
+        )}
+        {saveError && <p className="text-sm text-loss">Enregistrement de l'évaluation impossible : {saveError}</p>}
+      </section>
 
       <AnalysisSection listingId={listing.id} analysis={analysis} onDone={reload} />
 
@@ -107,11 +240,10 @@ export default function ListingDetail() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-navy-950">Rentabilité</h2>
+        <h2 className="text-lg font-semibold text-navy-950">Rentabilité (simulation)</h2>
         <ProfitCalculator
           initialSaleCents={estimate.status === 'ok' ? estimate.medianCents : null}
           initialPurchaseCents={listing.price_cents}
-          initialPlatform="vinted"
         />
       </section>
 
@@ -160,7 +292,7 @@ function AnalysisSection({
           type="file"
           accept="image/*"
           multiple
-          onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, 3))}
+          onChange={(e) => setFiles(Array.from<File>(e.target.files ?? []).slice(0, 3))}
           className="text-sm"
         />
         <div>
