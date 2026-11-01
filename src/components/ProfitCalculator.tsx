@@ -32,6 +32,14 @@ export default function ProfitCalculator({ initialSaleCents, initialPurchaseCent
   useEffect(() => setSale(toField(initialSaleCents)), [initialSaleCents]);
   useEffect(() => setPurchase(toField(initialPurchaseCents)), [initialPurchaseCents]);
 
+  // Valeurs par défaut issues des paramètres (plateforme de revente, coûts annexes moyens).
+  useEffect(() => {
+    if (!initialPlatform) setPlatform(settings.resalePlatform);
+  }, [initialPlatform, settings.resalePlatform]);
+  useEffect(() => {
+    setOther(settings.defaultOtherCostsCents > 0 ? toField(settings.defaultOtherCostsCents) : '');
+  }, [settings.defaultOtherCostsCents]);
+
   // Frais proposés d'après les paramètres de la plateforme ; modifiables ensuite.
   useEffect(() => {
     const f: FeeModel = settings.fees[`${platform}:sale`] ?? NO_FEES;
