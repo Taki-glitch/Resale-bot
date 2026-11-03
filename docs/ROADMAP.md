@@ -8,8 +8,8 @@ Cette feuille de route décrit l'objectif fonctionnel. Une fonctionnalité n'est
 |---|---|---|
 | V0.1 | Socle, authentification, dashboard, paramètres, base et déploiement | Réalisée dans le dépôt |
 | V0.2 | Saisie manuelle d'annonces, détail, analyse IA, comparables, calculateur | Validée par l'utilisateur ; reste le lockfile et le test RLS à deux comptes |
-| V0.3 | Évaluation explicable, opportunités, notifications dans l'application, modification d'annonce, provenance | Code livré (PR) ; mise en service et validation à terminer |
-| V0.3.1 | Recherches enregistrées, Telegram, photos et stockage | À développer |
+| V0.3 consolidée (0.3.1) | Évaluation explicable, opportunités, notifications, recherches enregistrées, calculateur détaillé, durcissement Supabase | Code livré (PR) ; mise en service et validation à terminer |
+| V0.3.2 | Telegram, récupération via source autorisée, baisse de prix | À développer |
 | V0.4 | Achats, inventaire, reventes et ventes réelles | À développer |
 | V0.5 | Veille planifiée autorisée, statistiques, exports et durcissement | À développer |
 
@@ -35,12 +35,13 @@ Cette feuille de route décrit l'objectif fonctionnel. Une fonctionnalité n'est
 - [x] Statuts d'opportunité et notifications dans l'application sans répétition.
 - [x] Modification d'une annonce et affichage de la provenance des informations.
 - [x] Tableau de bord : meilleures opportunités et dernières annonces (données réelles).
-- [ ] Mise en service : migration 0003, tests manuels et test RLS à deux comptes.
+- [x] Recherches enregistrées, filtres et tris (V0.3 consolidée).
+- [x] Calculateur détaillé (livraisons, remise en état, frais de plateforme, scénarios fondés sur les données).
+- [x] Migration 0004 : propriétaire des références, protection des produits, nom de recherche unique.
+- [ ] Mise en service : migrations 0003 et 0004, redéploiement de la fonction IA, tests manuels et test RLS à deux comptes.
 
-## V0.3.1 — Recherche, alertes et médias
+## V0.3.2 — Alertes externes et sources autorisées
 
-- [ ] Recherches enregistrées par plateforme, catégorie, marque, mots-clés, budget et localisation.
-- [ ] Photos : image principale et plusieurs photos (Supabase Storage, politiques d'accès, redimensionnement).
 - [ ] Telegram, uniquement après configuration sécurisée du bot et consentement de l'utilisateur.
 - [ ] Récupération d'informations d'annonce uniquement via une source autorisée (API officielle, flux ou partenariat) ; sinon, saisie manuelle.
 - [ ] Alertes de baisse de prix si une source autorisée le permet.
@@ -48,7 +49,6 @@ Cette feuille de route décrit l'objectif fonctionnel. Une fonctionnalité n'est
 
 ## V0.4 — Gestion de l'activité
 
-- [ ] Calculateur détaillé : frais d'achat, frais de plateforme, livraison, préparation ou réparation.
 
 - [ ] Transformer une opportunité en achat confirmé, après validation humaine.
 - [ ] Enregistrer le prix payé, les frais, le transport, la date et le vendeur/source.

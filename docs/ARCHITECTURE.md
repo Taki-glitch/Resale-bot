@@ -1,6 +1,6 @@
 # RESALE BOT — Architecture technique
 
-**Version de référence : V0.3**  
+**Version de référence : V0.3 consolidée (0.3.1)**  
 **Application :** https://taki-glitch.github.io/Resale-bot/#/  
 **Dépôt :** https://github.com/Taki-glitch/Resale-bot
 
@@ -99,6 +99,15 @@ marge (bénéfice et rendement face aux seuils) ; demande (ventes réalisées su
 
 **Provenance** : `listings.source_kind` (`manual`, `import`, `authorized_source`). Seule la saisie manuelle existe aujourd'hui.
 
+### Consolidation (0.3.1)
+- **Coûts** : acquisition = achat + livraison achat + remise en état + autres ; à la vente : frais de plateforme + livraison supportée ; bénéfice net = vente − frais − livraison vente − acquisition.
+- **Estimation** : médiane et quartiles pondérés (pertinence × nature × récence × proximité d'état) ; valeur réellement observée, la plus basse en cas d'égalité ; ventes réalisées prioritaires.
+- **Scénarios** : prudent = min(1er quartile, −15 %) ; central = médiane ; optimiste = 3e quartile, seulement avec ≥ 5 ventes réalisées et confiance ≥ 0,6.
+- **Prudence** : score plafonné à 49 sans analyse IA suffisante, à 20 si le bénéfice net est ≤ 0. Tranches : ≥ 80 excellente, ≥ 65 intéressante, ≥ 50 à étudier, sinon peu intéressante ; « Non évaluable » sans comparables suffisants.
+- **Actions** : excellente / bonne → Acheter ; sous conditions → À négocier (prix > achat maximal) ou À surveiller ; peu intéressante → À surveiller ; à éviter → Ne pas acheter.
+- **Notifications** : `core/notifications.ts` produit des événements avec clé de déduplication ; la base garantit l'unicité (utilisateur, canal, clé).
+- **Recherche** : `core/search.ts` (filtres et tris purs) ; recherches enregistrées dans `search_configs.filters` (format v2, anciennes recherches lisibles).
+
 ## 6. Données et sécurité
 
 - Les montants sont stockés en centimes entiers pour éviter les erreurs d'arrondi.
@@ -118,7 +127,7 @@ Frontend (variables de build GitHub Actions ou fichier `.env` local) :
 
 Serveur Supabase (secrets de la fonction) :
 
-- `ANTHROPIC_API_KEY` ou la clé du fournisseur IA effectivement utilisé par le code de la fonction.
+- `ANTHROPIC_API_KEY` (obligatoire) et `AI_MODEL` (facultatif, défaut `claude-sonnet-5-5`) : seuls noms lus par la fonction `analyze-listing`.
 
 Ne jamais préfixer un secret serveur par `VITE_`. Ne jamais committer un vrai fichier `.env`.
 
@@ -129,6 +138,7 @@ Les migrations SQL sont appliquées dans l'ordre numérique :
 1. `supabase/migrations/0001_init.sql`
 2. `supabase/migrations/0002_v02.sql`
 3. `supabase/migrations/0003_v03.sql`
+4. `supabase/migrations/0004_hardening.sql` (déclencheurs de propriétaire, protection des produits, comparables enrichis, nom de recherche unique)
 
 La fonction `analyze-listing` doit être déployée séparément (Supabase CLI, ou éditeur du dashboard : Edge Functions → Deploy a new function → Via Editor) et ses secrets configurés. `supabase/config.toml` ne sert qu'à la CLI locale et ne configure pas le projet hébergé ; l'option « Verify JWT » de la fonction se règle dans le dashboard si la fonction est déployée par l'éditeur. Le simple fait que ses fichiers soient dans GitHub ne signifie pas qu'elle est déployée.
 

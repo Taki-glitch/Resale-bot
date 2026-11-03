@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateListing, OVERPRICED_PCT } from './evaluation.ts';
+import { ACTION_LABEL, deriveAction, evaluateListing, EVIDENCE_CAP, LOSS_CAP, OVERPRICED_PCT, scoreBand } from './evaluation.ts';
 import type { EvaluationInput } from './evaluation.ts';
 
 const NOW = new Date('2026-11-01T12:00:00Z');
@@ -35,7 +35,7 @@ test('moins de 3 comparables : non évaluable, aucun score inventé', () => {
   assert.equal(e.score, null);
   assert.equal(e.risk, null);
   assert.equal(e.netProfitCents, null);
-  assert.match(e.justification[0], /insuffisamment documentée/);
+  assert.match(e.justification[0], /indisponible/);
 });
 
 test('prix demandé inconnu : non évaluable', () => {
@@ -118,3 +118,82 @@ test('la signature change quand une donnée change', () => {
   assert.notEqual(a.signature, b.signature);
   assert.equal(a.signature, evaluateListing(input()).signature);
 });
+
+// ---- V0.3 consolidée ----
+test('sans analyse IA suffisante le score est plafonné (jamais « acheter »)', () => {
+  const e = evaluateListing(input({ analysis: null }));
+  assert.ok((e.score ?? 100) <= EVIDENCE_CAP);
+  assert.ok((e.rawScore ?? 0) > EVIDENCE_CAP); // le plafond a bien joué
+  assert.notEqual(e.action, 'buy');
+  assert.ok(e.evidenceGaps.includes('Analyse IA absente'));
+  assert.match(e.justification.join(' '), /plafonné/);
+});
+
+test('analyse IA sans confiance connue : plafond aussi', () => {
+  const e = evaluateListing(input({ analysis: { confidence: null, sufficientData: true, visibleDefects: [], riskFlags: [] } }));
+  assert.ok((e.score ?? 100) <= EVIDENCE_CAP);
+  assert.ok(e.evidenceGaps.includes('Confiance IA inconnue'));
+});
+
+test('bénéfice négatif : score plafonné et ne pas acheter', () => {
+  const e = evaluateListing(input({ listing: { ...input().listing, priceCents: 5000 } }));
+  assert.ok((e.score ?? 100) <= LOSS_CAP);
+  assert.equal(e.action, 'avoid');
+  assert.equal(e.actionLabel, 'Ne pas acheter');
+});
+
+test('score et confiance sont deux notions distinctes', () => {
+  const e = evaluateListing(input());
+  assert.ok(e.confidence !== (e.score ?? 0) / 100);
+  assert.equal(e.confidenceLevel, 'medium');
+  assert.equal(e.band, 'excellent');
+});
+
+test('coûts détaillés pris en compte dans le bénéfice, le prix d\'achat maximal et le coût total', () => {
+  const plain = evaluateListing(input());
+  const withCosts = evaluateListing(
+    input({ settings: { ...input().settings, purchaseShippingCents: 400, cleaningCents: 300, saleShippingCents: 500 } }),
+  );
+  assert.equal((plain.netProfitCents ?? 0) - (withCosts.netProfitCents ?? 0), 1200);
+  assert.equal((plain.maxBuyCents ?? 0) - (withCosts.maxBuyCents ?? 0), 1200);
+  assert.equal(withCosts.costs?.acquisitionCostCents, 2000 + 300 + 400 + 300);
+  assert.equal(withCosts.costs?.saleShippingCents, 500);
+});
+
+test('scénarios : prudent < central ; optimiste seulement avec assez de ventes réalisées', () => {
+  const e = evaluateListing(input());
+  assert.ok(e.scenarios);
+  assert.ok((e.scenarios?.prudent.netProfitCents ?? 0) < (e.scenarios?.central.netProfitCents ?? 0));
+  assert.ok(e.scenarios?.optimistic); // 5 ventes réalisées, confiance suffisante
+  const asking = evaluateListing(input({ comparables: [4000, 4100, 3900, 4000, 4050].map(asking_) }));
+  assert.equal(asking.scenarios?.optimistic, null);
+  assert.match(asking.scenarioNotes[2], /non affiché/);
+});
+
+test('comparables anciens signalés comme risque et condition', () => {
+  const e = evaluateListing(input({ comparables: [4000, 4100, 3900, 4000, 4050].map((p) => sold(p, 150)) }));
+  assert.equal(e.staleComparables, true);
+  assert.ok(e.risks.some((r) => /anciens/.test(r)));
+});
+
+test('seuil d\'équilibre de revente inférieur au prix de revente minimal', () => {
+  const e = evaluateListing(input());
+  assert.ok((e.breakEvenCents ?? 0) < (e.minResaleCents ?? 0));
+});
+
+test('tranches de score et actions suggérées', () => {
+  assert.equal(scoreBand(92), 'excellent');
+  assert.equal(scoreBand(70), 'interesting');
+  assert.equal(scoreBand(55), 'study');
+  assert.equal(scoreBand(30), 'low');
+  assert.equal(scoreBand(null), 'unevaluable');
+  assert.equal(deriveAction('excellent', 100, 200), 'buy');
+  assert.equal(deriveAction('conditional', 3000, 2000), 'negotiate');
+  assert.equal(deriveAction('conditional', 1000, 2000), 'watch');
+  assert.equal(deriveAction('poor', 1000, 2000), 'watch');
+  assert.equal(ACTION_LABEL.insufficient, 'Non évaluable');
+});
+
+function asking_(priceCents: number) {
+  return { priceCents, kind: 'asking' as const, observedAt: daysAgo(3) };
+}

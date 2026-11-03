@@ -28,7 +28,11 @@ Les tests présents dans `src/core/*.test.ts` couvrent notamment :
 - chargement des paramètres par défaut et fusion des paramètres partiels (dont poids de scoring) ;
 - score sur 100 : critères non mesurés à 0 point, recalibrage des poids, plafond sans données ;
 - évaluation : non évaluable sans comparables, excellente / bonne / sous conditions / à éviter, budget dépassé, risque élevé, confiance croissante avec les ventes réalisées, prix anormalement bas ou élevé, signature de persistance ;
-- opportunités : tris, filtres, historique, sélection et règle anti-répétition des notifications.
+- opportunités : tris, filtres, historique, sélection ;
+- notifications : événements (devient évaluable / non évaluable, recommandation modifiée, score en hausse, nouveau risque, réévaluation nécessaire), déduplication, silence quand rien ne change ;
+- recherche : filtres combinés, tris, aller-retour d'une recherche enregistrée, anciennes recherches lisibles ;
+- coûts détaillés, scénarios, estimation pondérée, plafonds de prudence ;
+- suppression : un produit encore utilisé n'est pas supprimé.
 
 Les tests métier ne remplacent pas les tests d'intégration avec Supabase.
 
@@ -94,6 +98,21 @@ Prérequis : migration `0003_v03.sql` exécutée.
 - [ ] Modifier les poids du score dans Paramètres, enregistrer, revenir sur une annonce : le score change.
 - [ ] Vérifier que le tableau de bord affiche les meilleures opportunités et les dernières annonces.
 - [ ] Vérifier la suppression d'une annonce (confirmation demandée) : l'opportunité et les notifications liées disparaissent.
+
+## 6 ter. Contrôles SQL (Supabase → SQL Editor)
+
+```sql
+-- Tables sans RLS (doit renvoyer 0 ligne)
+select tablename from pg_tables where schemaname = 'public' and not rowsecurity;
+
+-- Déclencheurs de propriétaire installés (11 tables attendues)
+select event_object_table, count(*) from information_schema.triggers
+where trigger_schema = 'public' and trigger_name = 'trg_same_owner' group by 1 order by 1;
+```
+
+- [ ] Avec deux comptes : insérer, depuis le compte B, un commentaire/comparable/notification qui référence un identifiant du compte A → l'insertion doit échouer (« Référence invalide »).
+- [ ] Un produit utilisé par une annonce ne peut pas être supprimé directement (erreur 23503).
+- [ ] Supprimer une annonce dont le produit sert à une autre annonce : le produit et ses comparables restent.
 
 ## 7. Tests sécurité et isolation des données
 

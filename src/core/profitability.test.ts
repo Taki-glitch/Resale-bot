@@ -90,3 +90,38 @@ test('trois scénarios ordonnés', () => {
   assert.ok(s.realistic.netProfitCents > s.cautious.netProfitCents);
   assert.equal(s.realistic.salePriceCents, 4000);
 });
+
+// ---- Détail des coûts (V0.3 consolidée) ----
+import { acquisitionCost, computeScenarioSet } from './profitability.ts';
+
+test('coûts détaillés : acquisition = achat + livraison + remise en état + autres ; rien n\'est compté deux fois', () => {
+  const costs = { purchaseShippingCents: 400, cleaningCents: 250, otherCostsCents: 100, saleShippingCents: 500 };
+  const r = computeProfit({ salePriceCents: 5000, purchasePriceCents: 2000, fee: { percent: 10, fixedCents: 0 }, ...costs });
+  assert.equal(r.acquisitionCostCents, 2000 + 400 + 250 + 100);
+  assert.equal(r.feesCents, 500);
+  assert.equal(r.saleShippingCents, 500);
+  assert.equal(r.totalCostCents, 2750 + 500 + 500);
+  assert.equal(r.netProfitCents, 5000 - 500 - 500 - 2750); // 1250
+  assert.equal(r.roiPct, 45.5); // 1250 / 2750
+  assert.equal(r.marginPct, 25); // 1250 / 5000
+  assert.equal(acquisitionCost({ purchasePriceCents: 100, purchaseShippingCents: -50 }), 100); // valeurs négatives ignorées
+});
+
+test('prix d\'achat maximal et prix de revente minimum tiennent compte de tous les coûts', () => {
+  const args = { fee: { percent: 10, fixedCents: 0 }, purchaseShippingCents: 400, cleaningCents: 250, otherCostsCents: 100, saleShippingCents: 500 };
+  const max = maxPurchasePrice({ salePriceCents: 5000, minProfitCents: 1000, ...args });
+  assert.equal(max, 5000 - 500 - 500 - 400 - 250 - 100 - 1000); // 2250
+  const r = computeProfit({ salePriceCents: 5000, purchasePriceCents: max, ...args });
+  assert.equal(r.netProfitCents, 1000);
+  const equilibre = minResalePrice({ purchasePriceCents: 2000, minProfitCents: 0, ...args });
+  assert.ok(equilibre !== null);
+  assert.ok(computeProfit({ salePriceCents: equilibre, purchasePriceCents: 2000, ...args }).netProfitCents >= 0);
+  assert.ok(computeProfit({ salePriceCents: equilibre - 1, purchasePriceCents: 2000, ...args }).netProfitCents < 0);
+});
+
+test('jeu de scénarios : optimiste absent quand rien ne le justifie', () => {
+  const base = { purchasePriceCents: 2000, fee: { percent: 0, fixedCents: 0 } };
+  const s = computeScenarioSet(base, { prudentCents: 3000, centralCents: 4000, optimisticCents: null });
+  assert.equal(s.optimistic, null);
+  assert.ok(s.prudent.netProfitCents < s.central.netProfitCents);
+});

@@ -16,7 +16,15 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-type EuroKey = 'totalBudgetCents' | 'maxPerItemCents' | 'minProfitCents' | 'monthlyTargetCents' | 'defaultOtherCostsCents';
+type EuroKey =
+  | 'totalBudgetCents'
+  | 'maxPerItemCents'
+  | 'minProfitCents'
+  | 'monthlyTargetCents'
+  | 'defaultPurchaseShippingCents'
+  | 'defaultSaleShippingCents'
+  | 'defaultCleaningCents'
+  | 'defaultOtherCostsCents';
 
 const FEE_ROWS = [
   { key: 'vinted:sale', label: 'Vinted (revente)' },
@@ -112,7 +120,15 @@ export default function SettingsPage() {
               <option value="leboncoin">Leboncoin</option>
             </select>
           </Field>
-          <Field label="Coûts annexes moyens par article (€) : livraison, emballage…">{euro('defaultOtherCostsCents')}</Field>
+        </div>
+        <p className="text-xs text-slate-500">
+          Coûts moyens par article, utilisés par l'évaluation et proposés dans le calculateur. Si l'acheteur paie la livraison, laisse « livraison vente » à 0.
+        </p>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <Field label="Livraison à l'achat (€)">{euro('defaultPurchaseShippingCents')}</Field>
+          <Field label="Livraison vente à ta charge (€)">{euro('defaultSaleShippingCents')}</Field>
+          <Field label="Nettoyage / remise en état (€)">{euro('defaultCleaningCents')}</Field>
+          <Field label="Autres coûts (€)">{euro('defaultOtherCostsCents')}</Field>
         </div>
       </section>
 

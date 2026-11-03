@@ -1,11 +1,10 @@
-import { RECOMMENDATION_LABEL, RISK_LABEL } from '../core/evaluation.ts';
-import type { Recommendation, RiskLevel } from '../core/evaluation.ts';
+import { ACTION_LABEL, BAND_LABEL, RISK_LABEL, deriveAction, scoreBand } from '../core/evaluation.ts';
+import type { Action, Recommendation, RiskLevel } from '../core/evaluation.ts';
 
-const REC_STYLE: Record<Recommendation, string> = {
-  excellent: 'bg-gain text-white',
-  good: 'bg-emerald-100 text-gain',
-  conditional: 'bg-orange-100 text-warn',
-  poor: 'bg-slate-200 text-slate-700',
+const ACTION_STYLE: Record<Action, string> = {
+  buy: 'bg-gain text-white',
+  watch: 'bg-orange-100 text-warn',
+  negotiate: 'bg-amber-100 text-amber-800',
   avoid: 'bg-red-100 text-loss',
   insufficient: 'border border-warn bg-orange-50 text-warn',
 };
@@ -16,10 +15,27 @@ const RISK_STYLE: Record<RiskLevel, string> = {
   high: 'bg-red-100 text-loss',
 };
 
-export function RecommendationBadge({ value }: { value: Recommendation }) {
+/** Action suggérée (Acheter, À surveiller, À négocier, Ne pas acheter, Non évaluable). */
+export function ActionBadge({
+  recommendation,
+  priceCents,
+  maxBuyCents,
+}: {
+  recommendation: Recommendation;
+  priceCents: number | null;
+  maxBuyCents: number | null;
+}) {
+  const action = deriveAction(recommendation, priceCents, maxBuyCents);
   return (
-    <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${REC_STYLE[value]}`}>
-      {RECOMMENDATION_LABEL[value]}
+    <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${ACTION_STYLE[action]}`}>{ACTION_LABEL[action]}</span>
+  );
+}
+
+export function ScoreChip({ score }: { score: number | null }) {
+  if (score === null) return <span className="text-xs text-slate-400">Score —</span>;
+  return (
+    <span className="text-xs text-slate-600">
+      Score <strong className="text-navy-950">{score}/100</strong> · {BAND_LABEL[scoreBand(score)]}
     </span>
   );
 }

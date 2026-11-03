@@ -8,6 +8,8 @@ const o = (id: string, over: Partial<OpportunityView> = {}): OpportunityView => 
   listingId: `l-${id}`,
   title: `Annonce ${id}`,
   platform: 'vinted',
+  brand: 'Nike',
+  summary: null,
   category: 'Vestes',
   priceCents: 2000,
   resaleEstimateCents: 4000,

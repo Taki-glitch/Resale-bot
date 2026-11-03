@@ -11,6 +11,7 @@ const CORS = {
 };
 
 const MAX_ANALYSES_PER_HOUR = 20;
+const AI_TIMEOUT_MS = 45_000;
 const MAX_IMAGES = 3;
 const MAX_IMAGE_CHARS = 1_500_000; // base64 d'une image réduite à ~1024 px
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -49,6 +50,20 @@ const asRecord = (v: unknown): Record<string, unknown> =>
 const asStrings = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').slice(0, 20) : [];
 const asText = (v: unknown): string | null => (typeof v === 'string' && v.trim() !== '' ? v.trim().slice(0, 200) : null);
+
+/**
+ * L'IA ne doit fournir ni prix, ni valeur, ni statistique de demande : ces champs sont retirés côté serveur,
+ * même si le modèle en produit. Seules des valeurs textuelles courtes sont conservées.
+ */
+const FORBIDDEN_KEY = /prix|price|valeur|value|cote|tarif|€|demande|demand|vente|sold|marge|profit|benefice|bénéfice/i;
+function sanitizeFacts(v: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, val] of Object.entries(asRecord(v)).slice(0, 30)) {
+    if (FORBIDDEN_KEY.test(k)) continue;
+    if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') out[k.slice(0, 60)] = String(val).slice(0, 200);
+  }
+  return out;
+}
 
 /** Extrait le premier objet JSON d'une réponse (tolère d'éventuelles balises de code). */
 function parseJsonObject(text: string): Record<string, unknown> {
@@ -115,19 +130,40 @@ Photos jointes : ${images.length}.`;
       { type: 'text', text },
     ];
 
-    // --- Appel IA ---
-    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model, max_tokens: 1500, system: SYSTEM, messages: [{ role: 'user', content }] }),
-    });
+    // --- Appel IA (délai maximal, erreurs explicites) ---
+    let aiRes: Response;
+    try {
+      aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model, max_tokens: 1500, system: SYSTEM, messages: [{ role: 'user', content }] }),
+        signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+      });
+    } catch (e) {
+      const timeout = e instanceof Error && (e.name === 'TimeoutError' || e.name === 'AbortError');
+      console.error('Appel IA impossible', e);
+      return json({ error: timeout ? "Le service d'IA n'a pas répondu à temps. Réessaie." : "Le service d'IA est injoignable." }, timeout ? 504 : 502);
+    }
     if (!aiRes.ok) {
       console.error('Erreur API IA', aiRes.status, (await aiRes.text()).slice(0, 500));
-      return json({ error: `Le service d'IA a répondu avec une erreur (${aiRes.status}).` }, 502);
+      const message =
+        aiRes.status === 401 || aiRes.status === 403
+          ? 'Clé IA refusée : vérifie le secret ANTHROPIC_API_KEY.'
+          : aiRes.status === 404
+            ? `Modèle IA introuvable : vérifie le secret AI_MODEL (valeur actuelle : ${model}).`
+            : aiRes.status === 429
+              ? 'Limite du service IA atteinte : réessaie plus tard.'
+              : `Le service d'IA a répondu avec une erreur (${aiRes.status}).`;
+      return json({ error: message }, aiRes.status === 429 ? 429 : 502);
     }
     const aiJson = await aiRes.json();
     const raw = (aiJson.content ?? []).filter((b: { type: string }) => b.type === 'text').map((b: { text: string }) => b.text).join('');
-    const out = parseJsonObject(raw);
+    let out: Record<string, unknown>;
+    try {
+      out = parseJsonObject(raw);
+    } catch {
+      return json({ error: "Réponse de l'IA illisible : relance l'analyse." }, 502);
+    }
 
     const product = asRecord(out.product);
     const condition = asRecord(out.condition);
@@ -147,8 +183,8 @@ Photos jointes : ${images.length}.`;
       .insert({
         listing_id: listing.id,
         product_id: listing.product_id,
-        known: asRecord(out.known),
-        inferred: asRecord(out.inferred),
+        known: sanitizeFacts(out.known),
+        inferred: sanitizeFacts(out.inferred),
         unknown: asStrings(out.unknown),
         details,
         confidence,

@@ -26,7 +26,7 @@ export async function createNotification(n: {
   return true;
 }
 
-export async function fetchNotifications(limit = 50): Promise<NotificationRow[]> {
+export async function fetchNotifications(limit = 100): Promise<NotificationRow[]> {
   const { data, error } = await db()
     .from('notifications')
     .select('*')
@@ -44,6 +44,12 @@ export async function markNotificationRead(id: string): Promise<void> {
 
 export async function markAllNotificationsRead(): Promise<void> {
   const { error } = await db().from('notifications').update({ read_at: new Date().toISOString() }).is('read_at', null);
+  if (error) throw new Error(error.message);
+}
+
+/** Suppression volontaire : la clé de déduplication disparaît avec la notification (un fait futur identique pourra être notifié). */
+export async function deleteNotification(id: string): Promise<void> {
+  const { error } = await db().from('notifications').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
 
