@@ -40,6 +40,10 @@ export interface ComparableRow {
   price_cents: number;
   price_kind: PriceKind;
   condition: string | null;
+  brand?: string | null;
+  model?: string | null;
+  size?: string | null;
+  relevance?: number | null;
   observed_at: string;
 }
 
@@ -93,4 +97,19 @@ export interface ListingDetail {
   comparables: ComparableRow[];
   analysis: AnalysisRow | null;
   opportunity: OpportunityRow | null;
+}
+
+/** Annonce enrichie du produit et de l'évaluation, pour la recherche et les filtres. */
+export interface ListingWithMeta extends Listing {
+  product: { brand: string | null; model: string | null; category: string | null } | null;
+  opportunity: {
+    score: number | null;
+    recommendation: Recommendation | null;
+    confidence: number | null;
+    status: OpportunityStatus;
+    est_profit_cents: number | null;
+    net_margin_pct: number | null;
+    max_buy_cents: number | null;
+    risk_level: RiskLevel | null;
+  } | null;
 }
