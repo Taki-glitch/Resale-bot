@@ -1,6 +1,9 @@
 import { db } from './db.ts';
 import { fingerprint, parseListingUrl } from '../core/listing.ts';
-import type { Listing, ListingDetail, ComparableRow, AnalysisRow, OpportunityRow, ProductRow, Platform } from '../types.ts';
+import { shouldDeleteProduct } from '../core/deletion.ts';
+import { confidenceLevelOf } from '../core/evaluation.ts';
+import type { SearchableListing } from '../core/search.ts';
+import type { Listing, ListingDetail, ListingWithMeta, ComparableRow, AnalysisRow, OpportunityRow, ProductRow, Platform } from '../types.ts';
 
 export class DuplicateListingError extends Error {
   existingId: string;
@@ -123,11 +126,61 @@ export async function fetchListingDetail(id: string): Promise<ListingDetail> {
   };
 }
 
+/**
+ * Supprime l'annonce (et, par cascade, son évaluation et ses notifications). Le produit associé n'est supprimé
+ * (avec ses comparables) que s'il n'est plus utilisé par aucune autre annonce ni aucun article d'inventaire.
+ * En cas de doute (erreur de comptage), le produit est conservé.
+ */
 export async function deleteListing(id: string, productId: string | null): Promise<void> {
   const client = db();
   const { error } = await client.from('listings').delete().eq('id', id);
   if (error) throw new Error(error.message);
-  if (productId) await client.from('products').delete().eq('id', productId);
+  if (!productId) return;
+  const l = await client.from('listings').select('id', { count: 'exact', head: true }).eq('product_id', productId);
+  const i = await client.from('inventory').select('id', { count: 'exact', head: true }).eq('product_id', productId);
+  if (l.error || i.error) return;
+  if (shouldDeleteProduct({ listings: l.count ?? 0, inventoryItems: i.count ?? 0 })) {
+    await client.from('products').delete().eq('id', productId);
+  }
+}
+
+/** Annonces avec leur produit et leur évaluation (une seule requête) pour la recherche et les filtres. */
+export async function fetchListingsWithMeta(limit = 300): Promise<ListingWithMeta[]> {
+  const { data, error } = await db()
+    .from('listings')
+    .select(
+      '*, product:products(brand, model, category), opportunity:opportunities(score, recommendation, confidence, status, est_profit_cents, net_margin_pct, max_buy_cents, risk_level)',
+    )
+    .order('detected_at', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as any[]).map((r) => ({
+    ...(r as Listing),
+    product: r.product ?? null,
+    opportunity: Array.isArray(r.opportunity) ? (r.opportunity[0] ?? null) : (r.opportunity ?? null),
+  })) as ListingWithMeta[];
+}
+
+export function toSearchable(l: ListingWithMeta): SearchableListing {
+  const o = l.opportunity;
+  const confidence = o?.confidence === null || o?.confidence === undefined ? null : Number(o.confidence);
+  return {
+    id: l.id,
+    title: l.title,
+    platform: l.platform,
+    location: l.location,
+    priceCents: l.price_cents,
+    brand: l.product?.brand ?? null,
+    model: l.product?.model ?? null,
+    category: l.product?.category ?? null,
+    detectedAt: l.detected_at,
+    score: o?.score ?? null,
+    netProfitCents: o?.est_profit_cents ?? null,
+    netMarginPct: o?.net_margin_pct === null || o?.net_margin_pct === undefined ? null : Number(o.net_margin_pct),
+    confidenceLevel: confidence === null ? null : confidenceLevelOf(confidence),
+    status: o?.status ?? null,
+    recommendation: o?.recommendation ?? null,
+  };
 }
 
 /** Modifie une annonce et sa fiche produit. Refuse un doublon d'une AUTRE annonce. */

@@ -8,8 +8,14 @@ export interface NewComparable {
   priceCents: number;
   kind: PriceKind;
   condition: string;
+  brand: string;
+  model: string;
+  size: string;
+  relevance: number; // 0.1 à 1
   observedAt: string; // AAAA-MM-JJ
 }
+
+const orNull = (s: string): string | null => (s.trim() === '' ? null : s.trim());
 
 export async function addComparable(c: NewComparable): Promise<void> {
   const { error } = await db()
@@ -17,10 +23,14 @@ export async function addComparable(c: NewComparable): Promise<void> {
     .insert({
       product_id: c.productId,
       source: c.source.trim(),
-      url: c.url.trim() === '' ? null : c.url.trim(),
+      url: orNull(c.url),
       price_cents: c.priceCents,
       price_kind: c.kind,
-      condition: c.condition.trim() === '' ? null : c.condition.trim(),
+      condition: orNull(c.condition),
+      brand: orNull(c.brand),
+      model: orNull(c.model),
+      size: orNull(c.size),
+      relevance: Math.min(1, Math.max(0.1, c.relevance)),
       observed_at: c.observedAt ? new Date(c.observedAt).toISOString() : new Date().toISOString(),
     });
   if (error) throw new Error(error.message);
