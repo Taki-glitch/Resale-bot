@@ -21,7 +21,9 @@ export interface OpportunityView {
   listingId: string;
   title: string;
   platform: string;
+  brand: string | null;
   category: string | null;
+  summary: string | null; // explication courte de la recommandation
   priceCents: number | null;
   resaleEstimateCents: number | null;
   netProfitCents: number | null;

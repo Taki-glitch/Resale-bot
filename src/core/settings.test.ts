@@ -25,3 +25,10 @@ test('réglages V0.3 : poids de scoring fusionnés, valeurs par défaut conserv�
   assert.equal(s.resalePlatform, 'leboncoin');
   assert.equal(mergeSettings({}).defaultOtherCostsCents, 0);
 });
+
+test('réglages V0.3 consolidée : coûts détaillés à 0 par défaut', () => {
+  const s = mergeSettings({ defaultCleaningCents: 250 });
+  assert.equal(s.defaultCleaningCents, 250);
+  assert.equal(s.defaultPurchaseShippingCents, 0);
+  assert.equal(s.defaultSaleShippingCents, 0);
+});

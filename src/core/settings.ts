@@ -16,8 +16,11 @@ export interface Settings {
   fees: Record<string, FeeModel>;
   /** Plateforme de revente supposée par défaut pour l'évaluation (clé de `fees`). */
   resalePlatform: string;
-  /** Coûts annexes moyens par article (livraison, emballage, préparation), en centimes. */
-  defaultOtherCostsCents: number;
+  /** Coûts moyens par article, en centimes (utilisés par l'évaluation et proposés dans le calculateur). */
+  defaultPurchaseShippingCents: number; // livraison payée à l'achat
+  defaultSaleShippingCents: number; // livraison supportée par le vendeur (0 si payée par l'acheteur)
+  defaultCleaningCents: number; // nettoyage, remise en état
+  defaultOtherCostsCents: number; // emballage et autres
   /** Poids du score (normalisés à 100 au calcul). */
   scoringWeights: ScoringWeights;
 }
@@ -33,6 +36,9 @@ export const DEFAULT_SETTINGS: Settings = {
   // Valeurs à 0 volontairement : les frais réels varient selon plateforme et mode de livraison.
   fees: { 'vinted:sale': { ...NO_FEES }, 'leboncoin:sale': { ...NO_FEES } },
   resalePlatform: 'vinted',
+  defaultPurchaseShippingCents: 0,
+  defaultSaleShippingCents: 0,
+  defaultCleaningCents: 0,
   defaultOtherCostsCents: 0,
   scoringWeights: { ...DEFAULT_WEIGHTS },
 };
