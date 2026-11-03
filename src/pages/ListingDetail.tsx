@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { deleteListing, fetchListingDetail, updateListing } from '../services/listings.ts';
 import type { NewListingInput } from '../services/listings.ts';
-import { saveEvaluation, updateOpportunity } from '../services/opportunities.ts';
+import { refreshEvaluations, saveEvaluation, updateOpportunity } from '../services/opportunities.ts';
 import { addComparable, deleteComparable } from '../services/comparables.ts';
 import { runAnalysis } from '../services/analysis.ts';
 import { fileToJpegBase64 } from '../lib/images.ts';
-import { estimateResale, INSUFFICIENT_LABEL } from '../core/estimate.ts';
-import { evaluateListing } from '../core/evaluation.ts';
-import { NO_FEES } from '../core/profitability.ts';
+import { INSUFFICIENT_LABEL } from '../core/estimate.ts';
+import { evaluateRows } from '../lib/evaluateRows.ts';
 import { STATUS_LABEL, STATUS_ORDER } from '../core/opportunities.ts';
 import type { OpportunityStatus } from '../core/opportunities.ts';
 import { parseEuros } from '../core/format.ts';
@@ -30,7 +29,9 @@ export default function ListingDetail() {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
+  const [params] = useSearchParams();
+  const [editing, setEditing] = useState(params.get('edit') === '1');
+  const [recalculating, setRecalculating] = useState(false);
   const persisted = useRef('');
 
   const reload = useCallback(async () => {
@@ -46,41 +47,14 @@ export default function ListingDetail() {
     void reload();
   }, [reload]);
 
-  const estimate = useMemo(
-    () => estimateResale((detail?.comparables ?? []).map((c) => ({ priceCents: c.price_cents, kind: c.price_kind }))),
-    [detail],
-  );
-
-  const evaluation = useMemo(() => {
-    if (!detail) return null;
-    const { listing, comparables, analysis } = detail;
-    return evaluateListing({
-      listing: {
-        priceCents: listing.price_cents,
-        condition: listing.condition,
-        description: listing.description,
-        url: listing.url,
-        location: listing.location,
-      },
-      comparables: comparables.map((c) => ({ priceCents: c.price_cents, kind: c.price_kind, observedAt: c.observed_at })),
-      analysis: analysis
-        ? {
-            confidence: analysis.confidence,
-            sufficientData: analysis.sufficient_data,
-            visibleDefects: analysis.details?.condition?.visible_defects ?? [],
-            riskFlags: analysis.details?.risk_flags ?? [],
-          }
+  const evaluation = useMemo(
+    () =>
+      detail
+        ? evaluateRows({ listing: detail.listing, comparables: detail.comparables, analysis: detail.analysis, settings })
         : null,
-      settings: {
-        minProfitCents: settings.minProfitCents,
-        minRoiPct: settings.minRoiPct,
-        maxPerItemCents: settings.maxPerItemCents,
-        fee: settings.fees[`${settings.resalePlatform}:sale`] ?? NO_FEES,
-        otherCostsCents: settings.defaultOtherCostsCents,
-        weights: settings.scoringWeights,
-      },
-    });
-  }, [detail, settings]);
+    [detail, settings],
+  );
+  const estimate = evaluation?.estimate ?? null;
 
   // Enregistre l'évaluation (classement des opportunités) uniquement si elle a changé.
   useEffect(() => {
@@ -103,7 +77,7 @@ export default function ListingDetail() {
   }, [detail, evaluation, settingsLoading, settings.minProfitCents]);
 
   if (error) return <p className="text-sm text-loss">{error}</p>;
-  if (!detail || !evaluation) return <p className="text-sm text-slate-500">Chargement…</p>;
+  if (!detail || !evaluation || !estimate) return <p className="text-sm text-slate-500">Chargement…</p>;
   const { listing, product, comparables, analysis, opportunity } = detail;
 
   async function remove() {
@@ -120,6 +94,18 @@ export default function ListingDetail() {
     await updateListing(listing.id, listing.product_id, input);
     setEditing(false);
     await reload();
+  }
+
+  async function recalc() {
+    setRecalculating(true);
+    try {
+      await refreshEvaluations(settings, listing.id);
+      await reload();
+    } catch (e) {
+      setSaveError(errMsg(e));
+    } finally {
+      setRecalculating(false);
+    }
   }
 
   async function changeOpportunity(patch: { status?: OpportunityStatus; is_selected?: boolean }) {
@@ -201,6 +187,12 @@ export default function ListingDetail() {
             <button className="btn btn-ghost" onClick={() => void changeOpportunity({ is_selected: !opportunity.is_selected })}>
               {opportunity.is_selected ? 'Retirer de ma sélection' : 'Ajouter à ma sélection'}
             </button>
+            <button className="btn btn-ghost" disabled={recalculating} onClick={() => void recalc()}>
+              {recalculating ? 'Recalcul…' : "Recalculer l'évaluation"}
+            </button>
+            {opportunity.status !== 'rejected' && (
+              <button className="btn btn-ghost" onClick={() => void changeOpportunity({ status: 'rejected' })}>Ignorer l'opportunité</button>
+            )}
           </div>
         )}
         {saveError && <p className="text-sm text-loss">Enregistrement de l'évaluation impossible : {saveError}</p>}
@@ -224,7 +216,7 @@ export default function ListingDetail() {
           ) : (
             <p className="font-medium text-warn">{INSUFFICIENT_LABEL}</p>
           )}
-          {estimate.warnings.map((w) => (
+          {estimate.warnings.slice(estimate.status === 'ok' ? 0 : 1).map((w) => (
             <p key={w} className="mt-1 text-xs text-warn">{w}</p>
           ))}
         </div>
@@ -333,6 +325,8 @@ function ComparableList({
             <p className="truncate text-sm text-slate-500">
               {c.source} · {new Date(c.observed_at).toLocaleDateString('fr-FR')}
               {c.condition ? ` · ${c.condition}` : ''}
+              {c.brand || c.model || c.size ? ` · ${[c.brand, c.model, c.size].filter(Boolean).join(' ')}` : ''}
+              {c.relevance != null && Number(c.relevance) < 1 ? ` · pertinence ${Math.round(Number(c.relevance) * 100)} %` : ''}
             </p>
           </div>
           <button
@@ -357,6 +351,10 @@ function ComparableForm({ productId, onAdded }: { productId: string; onAdded: ()
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [condition, setCondition] = useState('');
   const [url, setUrl] = useState('');
+  const [brand, setBrand] = useState('');
+  const [model, setModel] = useState('');
+  const [size, setSize] = useState('');
+  const [relevance, setRelevance] = useState('1');
   const [error, setError] = useState<string | null>(null);
 
   async function submit(e: FormEvent) {
@@ -366,10 +364,13 @@ function ComparableForm({ productId, onAdded }: { productId: string; onAdded: ()
     if (source.trim() === '') return setError('Indique la source (ex. Vinted, Leboncoin, eBay).');
     if (priceCents === null || priceCents <= 0) return setError('Indique un prix valide.');
     try {
-      await addComparable({ productId, source, url, priceCents, kind, condition, observedAt: date });
+      await addComparable({ productId, source, url, priceCents, kind, condition, brand, model, size, relevance: Number(relevance), observedAt: date });
       setPrice('');
       setCondition('');
       setUrl('');
+      setBrand('');
+      setModel('');
+      setSize('');
       await onAdded();
     } catch (err) {
       setError(errMsg(err));
@@ -406,6 +407,26 @@ function ComparableForm({ productId, onAdded }: { productId: string; onAdded: ()
         <div>
           <label className="label">Lien (optionnel)</label>
           <input className="input" type="url" value={url} onChange={(e) => setUrl(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Marque</label>
+          <input className="input" value={brand} onChange={(e) => setBrand(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Modèle</label>
+          <input className="input" value={model} onChange={(e) => setModel(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Taille</label>
+          <input className="input" value={size} onChange={(e) => setSize(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Pertinence</label>
+          <select className="input" value={relevance} onChange={(e) => setRelevance(e.target.value)}>
+            <option value="1">Identique</option>
+            <option value="0.7">Proche</option>
+            <option value="0.4">Éloigné</option>
+          </select>
         </div>
       </div>
       {error && <p className="text-sm text-loss">{error}</p>}

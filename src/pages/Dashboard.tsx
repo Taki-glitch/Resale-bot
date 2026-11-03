@@ -8,7 +8,7 @@ import { fetchOpportunityViews } from '../services/opportunities.ts';
 import { fetchListings } from '../services/listings.ts';
 import { filterOpportunities, sortOpportunities, DEFAULT_FILTERS } from '../core/opportunities.ts';
 import type { OpportunityView } from '../core/opportunities.ts';
-import { RecommendationBadge } from '../components/badges.tsx';
+import { ActionBadge } from '../components/badges.tsx';
 import { PLATFORM_LABEL } from '../lib/labels.ts';
 import type { Listing } from '../types.ts';
 
@@ -49,7 +49,7 @@ function Highlights() {
           <Link key={o.id} to={`/annonce/${o.listingId}`} className="block rounded-lg border border-slate-100 p-2 hover:border-navy-700">
             <p className="text-sm font-medium text-navy-950">{o.title}</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              <RecommendationBadge value={o.recommendation} />
+              <ActionBadge recommendation={o.recommendation} priceCents={o.priceCents} maxBuyCents={o.maxBuyCents} />
               <span className="text-xs text-slate-500">
                 {o.netProfitCents === null ? '' : `Bénéfice net est. ${formatEuros(o.netProfitCents)}`}
               </span>
