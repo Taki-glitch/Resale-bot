@@ -6,6 +6,9 @@ import { useSettings } from '../hooks/useSettings.ts';
 import { formatEuros } from '../core/settings.ts';
 import { fetchOpportunityViews } from '../services/opportunities.ts';
 import { fetchListings } from '../services/listings.ts';
+import { fetchSales } from '../services/sales.ts';
+import { fetchInventory } from '../services/inventory.ts';
+import { agedItems, AGING_DAYS, salesOfMonth, stockSummary, summarizeSales } from '../core/inventory.ts';
 import { filterOpportunities, sortOpportunities, DEFAULT_FILTERS } from '../core/opportunities.ts';
 import type { OpportunityView } from '../core/opportunities.ts';
 import { ActionBadge } from '../components/badges.tsx';
@@ -19,6 +22,45 @@ function Stat({ label, value, tone, hint }: { label: string; value: string; tone
       <div className="text-sm text-slate-500">{label}</div>
       <div className={`mt-1 text-2xl font-semibold ${color}`}>{value}</div>
       {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
+    </div>
+  );
+}
+
+/** Activité réelle : bénéfice du mois, stock et alertes. Aucune valeur n'est affichée tant que les données ne sont pas chargées. */
+function Activity() {
+  const [data, setData] = useState<{ profit: number; sold: number; stock: number; stockCount: number; aged: number } | null>(null);
+  useEffect(() => {
+    Promise.all([fetchSales(), fetchInventory()])
+      .then(([sales, inv]) => {
+        const month = salesOfMonth(sales, new Date().toISOString().slice(0, 7));
+        const sum = summarizeSales(month);
+        const stock = stockSummary(inv.views);
+        setData({ profit: sum.netProfitCents, sold: sum.count, stock: stock.costCents, stockCount: stock.count, aged: agedItems(inv.views).length });
+      })
+      .catch(() => setData(null));
+  }, []);
+  if (!data) return null;
+  return (
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="card">
+        <p className="text-sm text-slate-500">Bénéfice net du mois</p>
+        <p className={`mt-1 text-2xl font-semibold ${data.profit > 0 ? 'text-gain' : data.profit < 0 ? 'text-loss' : 'text-navy-950'}`}>{formatEuros(data.profit)}</p>
+        <p className="text-xs text-slate-400">{data.sold} vente(s) ce mois-ci</p>
+      </div>
+      <div className="card">
+        <p className="text-sm text-slate-500">Valeur du stock (coût)</p>
+        <p className="mt-1 text-2xl font-semibold text-navy-950">{formatEuros(data.stock)}</p>
+        <p className="text-xs text-slate-400">{data.stockCount} article(s)</p>
+      </div>
+      <Link to="/inventaire" className={`card ${data.aged > 0 ? 'border-warn' : ''}`}>
+        <p className="text-sm text-slate-500">Alerte stock</p>
+        <p className={`mt-1 text-2xl font-semibold ${data.aged > 0 ? 'text-warn' : 'text-navy-950'}`}>{data.aged}</p>
+        <p className="text-xs text-slate-400">immobilisé(s) &gt; {AGING_DAYS} jours</p>
+      </Link>
+      <Link to="/ventes" className="card">
+        <p className="text-sm text-slate-500">Ventes et comptabilité</p>
+        <p className="mt-1 text-sm font-medium text-navy-950">Voir le détail →</p>
+      </Link>
     </div>
   );
 }
@@ -117,6 +159,7 @@ export default function Dashboard() {
           )}
         </>
       )}
+      <Activity />
       <Highlights />
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3">
         {shortcuts.map(({ to, label, icon: Icon }) => (
