@@ -19,6 +19,7 @@ export interface Listing {
   location: string | null;
   product_id: string | null;
   source_kind?: SourceKind;
+  photos?: string[] | null;
   status: string;
   detected_at: string;
 }
