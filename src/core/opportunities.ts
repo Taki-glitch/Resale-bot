@@ -24,6 +24,7 @@ export interface OpportunityView {
   brand: string | null;
   category: string | null;
   summary: string | null; // explication courte de la recommandation
+  photos: string[]; // chemins de stockage (première = principale)
   priceCents: number | null;
   resaleEstimateCents: number | null;
   netProfitCents: number | null;

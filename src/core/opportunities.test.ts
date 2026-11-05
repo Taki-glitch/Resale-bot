@@ -10,6 +10,7 @@ const o = (id: string, over: Partial<OpportunityView> = {}): OpportunityView => 
   platform: 'vinted',
   brand: 'Nike',
   summary: null,
+  photos: [],
   category: 'Vestes',
   priceCents: 2000,
   resaleEstimateCents: 4000,

@@ -24,6 +24,8 @@ export const NOTIFICATION_TYPE_LABEL: Record<string, string> = {
   score_band_up: 'Score en hausse',
   new_risk: 'Nouveau risque',
   reevaluation_needed: 'Réévaluation nécessaire',
+  sale_recorded: 'Vente enregistrée',
+  stock_aging: 'Stock immobilisé',
 };
 
 export interface PreviousState {
