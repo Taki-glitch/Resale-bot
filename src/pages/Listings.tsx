@@ -4,6 +4,7 @@ import { createListing, fetchListingsWithMeta, toSearchable } from '../services/
 import ListingForm, { EMPTY_LISTING_FORM } from '../components/ListingForm.tsx';
 import SavedSearches from '../components/SavedSearches.tsx';
 import { ActionBadge, ScoreChip } from '../components/badges.tsx';
+import PhotoThumb from '../components/PhotoThumb.tsx';
 import { EMPTY_CRITERIA, filterListings, SORT_LABEL, sortListings } from '../core/search.ts';
 import type { SearchCriteria, SearchSort } from '../core/search.ts';
 import { STATUS_LABEL, STATUS_ORDER } from '../core/opportunities.ts';
@@ -179,7 +180,9 @@ export default function Listings() {
       {items && items.length > 0 && shown.length === 0 && <p className="text-sm text-slate-500">Aucune annonce ne correspond aux filtres.</p>}
       <div className="space-y-2">
         {shown.map((l) => (
-          <Link key={l.id} to={`/annonce/${l.id}`} className="card block space-y-1 hover:border-navy-700">
+          <Link key={l.id} to={`/annonce/${l.id}`} className="card flex items-start gap-3 hover:border-navy-700">
+            <PhotoThumb paths={l.photos ?? []} size={56} />
+            <div className="min-w-0 flex-1 space-y-1">
             <p className="font-medium text-navy-950">{l.title}</p>
             <p className="text-sm text-slate-500">
               {PLATFORM_LABEL[l.platform]} · {l.price_cents == null ? 'prix inconnu' : formatEuros(l.price_cents)} ·{' '}
@@ -195,6 +198,7 @@ export default function Listings() {
               {l.opportunity?.est_profit_cents != null && (
                 <span className="text-xs text-slate-600">Bénéfice net est. {formatEuros(l.opportunity.est_profit_cents)}</span>
               )}
+            </div>
             </div>
           </Link>
         ))}

@@ -7,6 +7,7 @@ import { DEFAULT_FILTERS, filterOpportunities, sortOpportunities, STATUS_LABEL, 
 import type { OpportunityFilters, OpportunityView, SortKey } from '../core/opportunities.ts';
 import { formatEuros, formatPct, parseEuros } from '../core/format.ts';
 import { ActionBadge, RiskBadge, ScoreChip } from '../components/badges.tsx';
+import PhotoThumb from '../components/PhotoThumb.tsx';
 import { PLATFORM_LABEL } from '../lib/labels.ts';
 import { errMsg } from '../lib/errors.ts';
 import type { Platform } from '../types.ts';
@@ -167,6 +168,7 @@ export default function Opportunities() {
         {shown.map((o) => (
           <div key={o.id} className="card space-y-2">
             <div className="flex items-start justify-between gap-2">
+              <PhotoThumb paths={o.photos} size={56} />
               <Link to={`/annonce/${o.listingId}`} className="min-w-0 flex-1">
                 <p className="font-medium text-navy-950">{o.title}</p>
                 <p className="text-xs text-slate-500">
@@ -201,6 +203,9 @@ export default function Opportunities() {
             <div className="flex flex-wrap gap-2">
               <Link className="btn btn-ghost !min-h-[40px]" to={`/annonce/${o.listingId}`}>Voir le détail</Link>
               <Link className="btn btn-ghost !min-h-[40px]" to={`/annonce/${o.listingId}?edit=1`}>Modifier l'annonce</Link>
+              {o.status !== 'bought' && (
+                <Link className="btn btn-ghost !min-h-[40px]" to={`/annonce/${o.listingId}?buy=1`}>Ajouter à l'inventaire</Link>
+              )}
               <button className="btn btn-ghost !min-h-[40px]" disabled={busy} onClick={() => void recompute(o.listingId)}>Recalculer</button>
               {o.status !== 'rejected' && (
                 <button className="btn btn-ghost !min-h-[40px]" onClick={() => void patch(o, { status: 'rejected' })}>Ignorer</button>

@@ -99,6 +99,23 @@ Prérequis : migration `0003_v03.sql` exécutée.
 - [ ] Vérifier que le tableau de bord affiche les meilleures opportunités et les dernières annonces.
 - [ ] Vérifier la suppression d'une annonce (confirmation demandée) : l'opportunité et les notifications liées disparaissent.
 
+## 6 quater. Tests manuels — achats, inventaire, ventes (V0.4)
+
+Prérequis : migration `0005_v04.sql` exécutée.
+
+- [ ] Depuis une annonce : « J'ai acheté cet article » → confirmation → l'article apparaît dans Inventaire (statut « Acheté »), l'opportunité passe à « Achetée ».
+- [ ] Ajouter 2 photos à l'article : elles s'affichent (vignette dans la liste). Un autre compte ne voit pas ces fichiers.
+- [ ] Ajouter une dépense (ex. nettoyage 3 €) : le coût total augmente.
+- [ ] Passer l'article en « Reçu » puis « En préparation » : il apparaît dans Reventes.
+- [ ] « Pré-remplir » : titre, description et prix proposés ; sans comparable → « Estimation indisponible ».
+- [ ] Enregistrer la vente : l'article passe à « Vendu », le bénéfice réalisé = vente − commission − livraison − autres − (achat + frais + dépenses).
+- [ ] Un second essai de vente du même article est refusé.
+- [ ] Un article vendu ne peut pas être supprimé ; un article non vendu se supprime après confirmation.
+- [ ] Ventes : chiffres cohérents avec la saisie ; filtre par mois ; exports CSV ouvrables dans Excel ; sauvegarde JSON téléchargée.
+- [ ] Une cellule texte commençant par « = » est exportée précédée d'une apostrophe.
+- [ ] Article sans coût d'achat connu : bénéfice « inconnu », exclu du bénéfice total.
+- [ ] Dashboard : bénéfice du mois, valeur du stock et alerte stock cohérents.
+
 ## 6 ter. Contrôles SQL (Supabase → SQL Editor)
 
 ```sql

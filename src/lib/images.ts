@@ -18,3 +18,19 @@ export async function fileToJpegBase64(
   const dataUrl = canvas.toDataURL('image/jpeg', quality);
   return { media_type: 'image/jpeg', data: dataUrl.split(',')[1] };
 }
+
+/** Réduit une photo (1024 px max, JPEG 80 %) pour le stockage : quelques centaines de Ko au lieu de plusieurs Mo. */
+export async function fileToJpegBlob(file: File, maxSize = 1024, quality = 0.8): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Impossible de traiter la photo sur cet appareil.');
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Conversion de la photo impossible.'))), 'image/jpeg', quality),
+  );
+}

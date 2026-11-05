@@ -4,7 +4,7 @@ Assistant d'aide à l'achat-revente : estime la valeur de revente d'annonces de 
 
 **Les estimations ne sont jamais des bénéfices garantis. Aucun achat n'est exécuté automatiquement. Rien n'est inventé : sans données suffisantes, une annonce est « non évaluable ».**
 
-## État : V0.3 consolidée (0.3.1)
+## État : V0.4 (0.4.0)
 - Saisie manuelle d'annonces (aucune collecte automatique : aucune source autorisée n'est configurée), modification, suppression sécurisée.
 - Recherche, filtres (mot-clé, catégorie, marque, prix, bénéfice, marge, score, confiance, statut), tris et **recherches enregistrées** (stockées dans Supabase).
 - Comparables (prix affichés ≠ ventes réalisées) avec pertinence, état, marque, modèle, taille ; estimation pondérée, « Estimation indisponible » si les données manquent.
@@ -13,7 +13,9 @@ Assistant d'aide à l'achat-revente : estime la valeur de revente d'annonces de 
 - Page Opportunités (classement, filtres, historique, sélection) et notifications dans l'application dédupliquées.
 - Analyse IA via une fonction Edge Supabase (identification et état ; **jamais de prix ni de statistique de demande**).
 
-À venir : V0.4 (achats, inventaire, reventes, ventes, bénéfice réalisé). Voir `docs/ROADMAP.md`.
+- **V0.4** : achats réels (jamais automatiques), inventaire avec photos, préparation de revente, enregistrement des ventes, bénéfice réalisé, tableau de bord financier, exports CSV et sauvegarde JSON.
+
+À venir : Telegram, sources autorisées, tests de bout en bout. Voir `docs/ROADMAP.md`.
 
 ## Variables d'environnement
 | Variable | Où | Rôle |
@@ -24,7 +26,7 @@ Assistant d'aide à l'achat-revente : estime la valeur de revente d'annonces de 
 | `AI_MODEL` | secret Supabase (facultatif) | modèle d'IA, défaut `claude-sonnet-5-5` |
 
 ## Mise en service
-1. **Supabase → SQL Editor** : exécuter dans l'ordre `supabase/migrations/0001_init.sql`, `0002_v02.sql`, `0003_v03.sql`, `0004_hardening.sql` (les migrations déjà appliquées peuvent être ignorées).
+1. **Supabase → SQL Editor** : exécuter dans l'ordre `supabase/migrations/0001_init.sql`, `0002_v02.sql`, `0003_v03.sql`, `0004_hardening.sql`, `0005_v04.sql` (les migrations déjà appliquées peuvent être ignorées).
 2. **Fonction IA** : Edge Functions → Deploy a new function → Via Editor, nom `analyze-listing`, coller `supabase/functions/analyze-listing/index.ts`. Ajouter le secret `ANTHROPIC_API_KEY`. Si l'appel renvoie « Invalid JWT », désactiver « Verify JWT » (la fonction vérifie elle-même l'utilisateur). **Tant qu'elle n'est pas déployée, l'analyse IA ne fonctionne pas** ; le reste de l'application fonctionne.
 3. **GitHub Pages** : Settings → Pages → Source « GitHub Actions » ; secrets `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` ; le workflow `deploy.yml` teste, construit et déploie à chaque fusion sur `main`.
 4. **Supabase → Authentication → URL Configuration** : Site URL `https://<utilisateur>.github.io/<dépôt>/`.

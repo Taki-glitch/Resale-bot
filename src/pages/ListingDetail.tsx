@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { deleteListing, fetchListingDetail, updateListing } from '../services/listings.ts';
+import { deleteListing, fetchListingDetail, updateListing, updateListingPhotos } from '../services/listings.ts';
 import type { NewListingInput } from '../services/listings.ts';
 import { refreshEvaluations, saveEvaluation, updateOpportunity } from '../services/opportunities.ts';
 import { addComparable, deleteComparable } from '../services/comparables.ts';
@@ -16,6 +16,8 @@ import { formatEuros } from '../core/settings.ts';
 import { errMsg } from '../lib/errors.ts';
 import AnalysisView from '../components/AnalysisView.tsx';
 import EvaluationCard from '../components/EvaluationCard.tsx';
+import PhotoStrip from '../components/PhotoStrip.tsx';
+import PurchaseForm from '../components/PurchaseForm.tsx';
 import ListingForm from '../components/ListingForm.tsx';
 import { useSettings } from '../hooks/useSettings.ts';
 import { PLATFORM_LABEL, SOURCE_KIND_LABEL } from '../lib/labels.ts';
@@ -32,6 +34,7 @@ export default function ListingDetail() {
   const [params] = useSearchParams();
   const [editing, setEditing] = useState(params.get('edit') === '1');
   const [recalculating, setRecalculating] = useState(false);
+  const [buying, setBuying] = useState(params.get('buy') === '1');
   const persisted = useRef('');
 
   const reload = useCallback(async () => {
@@ -145,6 +148,26 @@ export default function ListingDetail() {
           </button>
         </div>
       </div>
+
+      <section className="space-y-2">
+        <h2 className="text-lg font-semibold text-navy-950">Photos</h2>
+        <PhotoStrip
+          paths={listing.photos ?? []}
+          scope={`listing-${listing.id}`}
+          onChange={async (paths) => {
+            await updateListingPhotos(listing.id, paths);
+            await reload();
+          }}
+        />
+      </section>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button className="btn btn-primary" onClick={() => setBuying((v) => !v)}>
+          {buying ? 'Fermer' : "J'ai acheté cet article : ajouter à l'inventaire"}
+        </button>
+        {opportunity?.status === 'bought' && <span className="text-sm text-gain">Déjà marquée « Achetée »</span>}
+      </div>
+      {buying && <PurchaseForm listing={listing} alreadyBought={opportunity?.status === 'bought'} onCancel={() => setBuying(false)} />}
 
       {editing && (
         <ListingForm

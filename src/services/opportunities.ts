@@ -191,7 +191,7 @@ export async function updateOpportunity(
 export async function fetchOpportunityViews(): Promise<OpportunityView[]> {
   const { data, error } = await db()
     .from('opportunities')
-    .select('*, listing:listings(id, title, platform, price_cents, detected_at, product:products(brand, category))')
+    .select('*, listing:listings(id, title, platform, price_cents, detected_at, photos, product:products(brand, category))')
     .order('detected_at', { ascending: false })
     .limit(300);
   if (error) throw new Error(error.message);
@@ -205,6 +205,7 @@ export async function fetchOpportunityViews(): Promise<OpportunityView[]> {
       brand: (r.listing.product?.brand ?? null) as string | null,
       category: (r.listing.product?.category ?? null) as string | null,
       summary: (r.score_detail?.summary ?? null) as string | null,
+      photos: (Array.isArray(r.listing.photos) ? r.listing.photos : []) as string[],
       priceCents: (r.listing.price_cents ?? null) as number | null,
       resaleEstimateCents: (r.score_detail?.resaleEstimateCents ?? null) as number | null,
       netProfitCents: (r.est_profit_cents ?? null) as number | null,

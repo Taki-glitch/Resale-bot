@@ -230,3 +230,8 @@ export async function updateListing(id: string, productId: string | null, input:
     if (p.error) throw new Error(p.error.message);
   }
 }
+
+export async function updateListingPhotos(id: string, paths: string[]): Promise<void> {
+  const { error } = await db().from('listings').update({ photos: paths }).eq('id', id);
+  if (error) throw new Error(error.message);
+}

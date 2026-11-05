@@ -10,7 +10,7 @@ Cette feuille de route décrit l'objectif fonctionnel. Une fonctionnalité n'est
 | V0.2 | Saisie manuelle d'annonces, détail, analyse IA, comparables, calculateur | Validée par l'utilisateur ; reste le lockfile et le test RLS à deux comptes |
 | V0.3 consolidée (0.3.1) | Évaluation explicable, opportunités, notifications, recherches enregistrées, calculateur détaillé, durcissement Supabase | Code livré (PR) ; mise en service et validation à terminer |
 | V0.3.2 | Telegram, récupération via source autorisée, baisse de prix | À développer |
-| V0.4 | Achats, inventaire, reventes et ventes réelles | À développer |
+| V0.4 (0.4.0) | Achats, inventaire, reventes et ventes réelles | Code livré (PR) ; mise en service et validation à terminer |
 | V0.5 | Veille planifiée autorisée, statistiques, exports et durcissement | À développer |
 
 ## V0.2 — Stabilisation (priorité immédiate)
@@ -49,13 +49,14 @@ Cette feuille de route décrit l'objectif fonctionnel. Une fonctionnalité n'est
 
 ## V0.4 — Gestion de l'activité
 
-
-- [ ] Transformer une opportunité en achat confirmé, après validation humaine.
-- [ ] Enregistrer le prix payé, les frais, le transport, la date et le vendeur/source.
-- [ ] Gérer les états du stock : à recevoir, reçu, à préparer, en vente, vendu, retourné, abandonné.
-- [ ] Préparer un titre, une description et un prix de revente suggérés.
-- [ ] Enregistrer le prix de vente réel et tous les coûts associés.
-- [ ] Calculer le bénéfice réellement réalisé, distinct du bénéfice estimé.
+- [x] Achat réel enregistré depuis une annonce (atomique), jamais d'achat automatique.
+- [x] Inventaire : recherche, statuts (dont « réservé »), photos, coûts, dépenses, alerte de stock immobilisé.
+- [x] Préparation de revente : prix minimum acceptable, équilibre, prix conseillé, brouillon de texte.
+- [x] Ventes : encaissement réel, commission, livraison, autres coûts, bénéfice réalisé, historique.
+- [x] Tableau de bord financier : chiffre d'affaires, bénéfice, marge, délai de vente, stock, performance par plateforme et catégorie.
+- [x] Exports CSV et sauvegarde JSON.
+- [ ] Restauration d'une sauvegarde, nettoyage des photos orphelines.
+- [ ] Mise en service : migration 0005 et tests manuels (voir TESTS.md).
 
 ## V0.5 — Pilotage et automatisation maîtrisée
 

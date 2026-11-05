@@ -1,6 +1,6 @@
 # RESALE BOT — Architecture technique
 
-**Version de référence : V0.3 consolidée (0.3.1)**  
+**Version de référence : V0.4 (0.4.0)**  
 **Application :** https://taki-glitch.github.io/Resale-bot/#/  
 **Dépôt :** https://github.com/Taki-glitch/Resale-bot
 
@@ -108,6 +108,13 @@ marge (bénéfice et rendement face aux seuils) ; demande (ventes réalisées su
 - **Notifications** : `core/notifications.ts` produit des événements avec clé de déduplication ; la base garantit l'unicité (utilisateur, canal, clé).
 - **Recherche** : `core/search.ts` (filtres et tris purs) ; recherches enregistrées dans `search_configs.filters` (format v2, anciennes recherches lisibles).
 
+### V0.4 : achats, inventaire, ventes
+- `core/inventory.ts` : statuts, coût d'un article, valeur du stock, stock immobilisé, bénéfice réalisé, synthèse des ventes (par plateforme et catégorie). Un coût inconnu reste inconnu (exclu du bénéfice, signalé).
+- `core/resale.ts` : prix minimum acceptable, équilibre, prix conseillé (via le moteur financier) et brouillon de texte sans IA.
+- `core/export.ts` : CSV (séparateur « ; », BOM, neutralisation des formules). `core/photos.ts` : chemins `<utilisateur>/<portée>/<id>.jpg`.
+- Opérations multi-tables **atomiques** : `record_purchase`, `record_sale` (fonctions SQL SECURITY INVOKER ; RLS et déclencheurs de propriétaire restent actifs).
+- Photos : compartiment privé `photos`, politiques limitées au dossier de l'utilisateur, liens signés temporaires côté application.
+
 ## 6. Données et sécurité
 
 - Les montants sont stockés en centimes entiers pour éviter les erreurs d'arrondi.
@@ -138,6 +145,7 @@ Les migrations SQL sont appliquées dans l'ordre numérique :
 1. `supabase/migrations/0001_init.sql`
 2. `supabase/migrations/0002_v02.sql`
 3. `supabase/migrations/0003_v03.sql`
+5. `supabase/migrations/0005_v04.sql` (achats et ventes atomiques, vue des ventes, photos)
 4. `supabase/migrations/0004_hardening.sql` (déclencheurs de propriétaire, protection des produits, comparables enrichis, nom de recherche unique)
 
 La fonction `analyze-listing` doit être déployée séparément (Supabase CLI, ou éditeur du dashboard : Edge Functions → Deploy a new function → Via Editor) et ses secrets configurés. `supabase/config.toml` ne sert qu'à la CLI locale et ne configure pas le projet hébergé ; l'option « Verify JWT » de la fonction se règle dans le dashboard si la fonction est déployée par l'éditeur. Le simple fait que ses fichiers soient dans GitHub ne signifie pas qu'elle est déployée.
