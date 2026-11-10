@@ -116,6 +116,22 @@ Prérequis : migration `0005_v04.sql` exécutée.
 - [ ] Article sans coût d'achat connu : bénéfice « inconnu », exclu du bénéfice total.
 - [ ] Dashboard : bénéfice du mois, valeur du stock et alerte stock cohérents.
 
+## 6 quinquies. Tests manuels — pilotage et automatisation (V0.5)
+
+Prérequis : migration `0006_v05.sql` exécutée.
+
+- [ ] Statistiques : les graphiques et indicateurs sont cohérents avec la page Ventes ; un mois sans vente affiche 0.
+- [ ] Objectif du mois : la progression suit le bénéfice du mois ; « Capital engagé » = coût du stock.
+- [ ] Modifier le prix d'une annonce (baisse) : une ligne apparaît dans « Historique du prix », une notification « Baisse de prix » est créée une seule fois, l'évaluation est recalculée.
+- [ ] Remodifier vers le même prix : aucune nouvelle notification.
+- [ ] Journal : achat, vente, suppression et sauvegarde apparaissent avec leur date.
+- [ ] Sauvegarde puis restauration dans le même compte : aucun doublon, aucune donnée supprimée ; un second essai de restauration ne crée rien de nouveau.
+- [ ] Restauration d'un fichier invalide (texte quelconque, JSON d'un autre outil) : message d'erreur clair.
+- [ ] Maintenance : lancer « Maintenance planifiée » à la main ; la page Journal montre une exécution « Réussie ». Relancer immédiatement : aucune notification dupliquée.
+- [ ] Lancer deux exécutions simultanées : la seconde s'arrête (« déjà en cours »).
+- [ ] Telegram (si activé) : un seul message par notification importante, même après plusieurs exécutions.
+- [ ] Provoquer une erreur de rendu (ex. donnée corrompue) : l'écran « Une erreur est survenue » remplace l'écran blanc.
+
 ## 6 ter. Contrôles SQL (Supabase → SQL Editor)
 
 ```sql
@@ -132,6 +148,8 @@ where trigger_schema = 'public' and trigger_name = 'trg_same_owner' group by 1 o
 - [ ] Supprimer une annonce dont le produit sert à une autre annonce : le produit et ses comparables restent.
 
 ## 7. Tests sécurité et isolation des données
+
+- [ ] Exécuter `supabase/tests/rls_two_accounts.sql` (deux comptes) : message attendu « TEST TERMINÉ : tous les contrôles sont OK ».
 
 Avec deux comptes Supabase distincts :
 
