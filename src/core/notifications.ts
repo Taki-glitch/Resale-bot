@@ -14,7 +14,8 @@ export type NotificationType =
   | 'recommendation_changed'
   | 'score_band_up'
   | 'new_risk'
-  | 'reevaluation_needed';
+  | 'reevaluation_needed'
+  | 'price_drop';
 
 export const NOTIFICATION_TYPE_LABEL: Record<string, string> = {
   opportunity: 'Opportunité',
@@ -26,6 +27,7 @@ export const NOTIFICATION_TYPE_LABEL: Record<string, string> = {
   reevaluation_needed: 'Réévaluation nécessaire',
   sale_recorded: 'Vente enregistrée',
   stock_aging: 'Stock immobilisé',
+  price_drop: 'Baisse de prix',
 };
 
 export interface PreviousState {
