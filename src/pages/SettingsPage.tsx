@@ -6,6 +6,8 @@ import { centsToEuros, eurosToCents } from '../core/settings.ts';
 import type { Settings } from '../core/settings.ts';
 import { parseEuros } from '../core/format.ts';
 import { CRITERIA_KEYS, CRITERIA_LABEL, DEFAULT_WEIGHTS } from '../core/scoring.ts';
+import { isValidChatId } from '../core/telegram.ts';
+import RestoreBackup from '../components/RestoreBackup.tsx';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -69,6 +71,7 @@ export default function SettingsPage() {
   if (loading) return <p className="text-sm text-slate-500">Chargement…</p>;
 
   return (
+    <div className="space-y-6">
     <form onSubmit={submit} className="space-y-6">
       <h1 className="text-2xl font-semibold text-navy-950">Paramètres</h1>
       {error && <p className="text-sm text-loss">{error}</p>}
@@ -155,12 +158,31 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <p className="text-xs text-slate-500">Telegram : à venir dans une version ultérieure.</p>
+      <section className="card space-y-3">
+        <h2 className="font-semibold text-navy-950">Notifications Telegram (facultatif)</h2>
+        <p className="text-xs text-slate-500">
+          La tâche planifiée envoie sur Telegram les alertes importantes (bonne affaire, baisse de prix, réévaluation nécessaire, stock immobilisé). Le jeton du bot est un
+          secret de la tâche (GitHub Actions), jamais saisi ici. Pour obtenir ton identifiant de conversation : écris à ton bot puis ouvre
+          api.telegram.org/bot&lt;jeton&gt;/getUpdates (champ « chat » → « id »).
+        </p>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={form.telegramEnabled} onChange={(e) => setForm({ ...form, telegramEnabled: e.target.checked })} />
+          Activer les notifications Telegram
+        </label>
+        <Field label="Identifiant de conversation Telegram">
+          <input className="input" inputMode="numeric" value={form.telegramChatId} onChange={(e) => setForm({ ...form, telegramChatId: e.target.value })} />
+        </Field>
+        {form.telegramEnabled && !isValidChatId(form.telegramChatId) && (
+          <p className="text-xs text-warn">Identifiant invalide : un nombre est attendu (ex. 123456789 ou -1001234567890). Tant qu'il est invalide, rien n'est envoyé.</p>
+        )}
+      </section>
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn btn-primary">Enregistrer</button>
         <button type="button" className="btn btn-ghost" onClick={() => supabase?.auth.signOut()}>Se déconnecter</button>
         {status && <span className="text-sm text-slate-600">{status}</span>}
       </div>
     </form>
+    <RestoreBackup />
+    </div>
   );
 }

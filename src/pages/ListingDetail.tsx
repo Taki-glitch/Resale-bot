@@ -18,6 +18,7 @@ import AnalysisView from '../components/AnalysisView.tsx';
 import EvaluationCard from '../components/EvaluationCard.tsx';
 import PhotoStrip from '../components/PhotoStrip.tsx';
 import PurchaseForm from '../components/PurchaseForm.tsx';
+import PriceHistory from '../components/PriceHistory.tsx';
 import ListingForm from '../components/ListingForm.tsx';
 import { useSettings } from '../hooks/useSettings.ts';
 import { PLATFORM_LABEL, SOURCE_KIND_LABEL } from '../lib/labels.ts';
@@ -148,6 +149,8 @@ export default function ListingDetail() {
           </button>
         </div>
       </div>
+
+      <PriceHistory listingId={listing.id} refreshKey={listing.price_cents ?? 0} />
 
       <section className="space-y-2">
         <h2 className="text-lg font-semibold text-navy-950">Photos</h2>
