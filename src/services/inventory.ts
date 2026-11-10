@@ -1,5 +1,7 @@
 import { db } from './db.ts';
+import { logActivity } from './audit.ts';
 import type { InventoryItemView, InventoryStatus } from '../core/inventory.ts';
+import { INVENTORY_SELECT as SELECT, inventoryToView as toView, loadInventoryWith } from '../lib/store.ts';
 import type { ComparableRow } from '../types.ts';
 
 /** Enregistre un achat : achat + article d'inventaire + statut de l'opportunité, en une seule transaction côté base. */
@@ -24,47 +26,11 @@ export async function recordPurchase(a: {
     p_accessories: a.accessories,
   });
   if (error) throw new Error(error.message);
+  await logActivity('purchase_recorded', 'inventory', data as string, { listingId: a.listingId, priceCents: a.priceCents, feesCents: a.feesCents });
   return data as string;
 }
 
-const sumBy = (rows: { inventory_id: string; amount_cents: number }[]): Map<string, number> => {
-  const m = new Map<string, number>();
-  for (const r of rows) m.set(r.inventory_id, (m.get(r.inventory_id) ?? 0) + r.amount_cents);
-  return m;
-};
-
-function toView(r: any, expenses: Map<string, number>): InventoryItemView {
-  const p = r.purchase ?? null;
-  return {
-    id: r.id as string,
-    name: r.name as string,
-    status: r.status as InventoryStatus,
-    category: (r.product?.category ?? null) as string | null,
-    purchasePriceCents: p ? (p.price_cents as number) : null,
-    purchaseFeesCents: p ? (p.fees_cents as number) : 0,
-    expensesCents: expenses.get(r.id as string) ?? 0,
-    plannedPriceCents: (r.planned_price_cents ?? null) as number | null,
-    purchasedAt: (p?.purchased_at ?? null) as string | null,
-    inStockSince: (r.in_stock_since ?? null) as string | null,
-    platform: (p?.platform ?? null) as string | null,
-  };
-}
-
-const SELECT = '*, purchase:purchases(id, price_cents, fees_cents, purchased_at, platform, seller_ref, condition_notes, accessories, url), product:products(brand, model, category)';
-
-export async function fetchInventory(): Promise<{ views: InventoryItemView[]; photos: Map<string, string[]> }> {
-  const client = db();
-  const inv = await client.from('inventory').select(SELECT).order('created_at', { ascending: false }).limit(500);
-  if (inv.error) throw new Error(inv.error.message);
-  const exp = await client.from('expenses').select('inventory_id, amount_cents').not('inventory_id', 'is', null).limit(5000);
-  if (exp.error) throw new Error(exp.error.message);
-  const sums = sumBy((exp.data ?? []) as { inventory_id: string; amount_cents: number }[]);
-  const rows = (inv.data ?? []) as any[];
-  return {
-    views: rows.map((r) => toView(r, sums)),
-    photos: new Map(rows.map((r) => [r.id as string, (Array.isArray(r.photos) ? r.photos : []) as string[]])),
-  };
-}
+export const fetchInventory = (): Promise<{ views: InventoryItemView[]; photos: Map<string, string[]> }> => loadInventoryWith(db());
 
 export interface InventoryDetail {
   row: any;
@@ -142,6 +108,7 @@ export async function deleteInventory(id: string, status: InventoryStatus, purch
   const { error } = await client.from('inventory').delete().eq('id', id);
   if (error) throw new Error(error.message);
   if (purchaseId) await client.from('purchases').delete().eq('id', purchaseId);
+  await logActivity('inventory_deleted', 'inventory', id, { purchaseId });
 }
 
 export async function addExpense(e: { inventoryId: string; label: string; category: string; amountCents: number; date: string }): Promise<void> {

@@ -11,7 +11,7 @@ Cette feuille de route décrit l'objectif fonctionnel. Une fonctionnalité n'est
 | V0.3 consolidée (0.3.1) | Évaluation explicable, opportunités, notifications, recherches enregistrées, calculateur détaillé, durcissement Supabase | Code livré (PR) ; mise en service et validation à terminer |
 | V0.3.2 | Telegram, récupération via source autorisée, baisse de prix | À développer |
 | V0.4 (0.4.0) | Achats, inventaire, reventes et ventes réelles | Code livré (PR) ; mise en service et validation à terminer |
-| V0.5 | Veille planifiée autorisée, statistiques, exports et durcissement | À développer |
+| V0.5 (0.5.0) | Statistiques, maintenance planifiée, journal, sauvegarde/restauration, durcissement | Code livré (PR) ; mise en service et validation à terminer |
 
 ## V0.2 — Stabilisation (priorité immédiate)
 
@@ -60,12 +60,17 @@ Cette feuille de route décrit l'objectif fonctionnel. Une fonctionnalité n'est
 
 ## V0.5 — Pilotage et automatisation maîtrisée
 
-- [ ] Tableau de bord financier : capital immobilisé, stock, chiffre d'affaires, frais, bénéfice réalisé et marge.
-- [ ] Exports CSV/JSON.
-- [ ] Historique des changements de prix et journal d'activité.
-- [ ] Surveillance planifiée uniquement via API, flux ou intégrations dont l'utilisation est autorisée.
-- [ ] Déduplication, limites de fréquence, reprise sur erreur et journalisation des tâches.
-- [ ] Sauvegarde et procédure de restauration testée.
+- [x] Statistiques : capital immobilisé, stock par ancienneté, chiffre d'affaires, frais, bénéfice réalisé, marge, objectif du mois, parcours des annonces.
+- [x] Exports CSV/JSON (V0.4) et sauvegarde JSON.
+- [x] Historique des changements de prix et journal d'activité.
+- [x] Maintenance planifiée : verrou, isolation des erreurs, reprise, journalisation, déduplication.
+- [x] Interface de connecteur de sources **autorisées** (registre vide : aucune collecte sur les plateformes).
+- [x] Notifications Telegram facultatives (via la maintenance planifiée).
+- [x] Restauration d'une sauvegarde (validation, aucune suppression, rejouable).
+- [x] Écran d'erreur (ErrorBoundary), pages chargées à la demande, liste de contrôle de mise en production, test d'isolation SQL.
+- [ ] Mise en service : migration 0006, secrets GitHub, test RLS à deux comptes, premier passage manuel de la maintenance.
+- [ ] Connecteur réel : uniquement via une API, un flux ou une intégration dont l'utilisation est autorisée.
+- [ ] Nettoyage des photos orphelines ; test de restauration sur un second compte.
 
 ## Critères de qualité communs
 

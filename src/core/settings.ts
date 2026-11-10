@@ -21,6 +21,9 @@ export interface Settings {
   defaultSaleShippingCents: number; // livraison supportée par le vendeur (0 si payée par l'acheteur)
   defaultCleaningCents: number; // nettoyage, remise en état
   defaultOtherCostsCents: number; // emballage et autres
+  /** Notifications Telegram (facultatif). Le jeton du bot reste un secret de la tâche planifiée, jamais ici. */
+  telegramEnabled: boolean;
+  telegramChatId: string;
   /** Poids du score (normalisés à 100 au calcul). */
   scoringWeights: ScoringWeights;
 }
@@ -40,6 +43,8 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultSaleShippingCents: 0,
   defaultCleaningCents: 0,
   defaultOtherCostsCents: 0,
+  telegramEnabled: false,
+  telegramChatId: '',
   scoringWeights: { ...DEFAULT_WEIGHTS },
 };
 

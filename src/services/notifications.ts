@@ -1,30 +1,10 @@
 import { db } from './db.ts';
+import { createNotificationWith } from '../lib/store.ts';
 import type { NotificationRow } from '../types.ts';
 
 /** Crée une notification dans l'application. Renvoie false si elle existe déjà (clé de déduplication). */
-export async function createNotification(n: {
-  type: string;
-  title: string;
-  body: string;
-  listingId: string | null;
-  dedupKey: string;
-}): Promise<boolean> {
-  const { error } = await db()
-    .from('notifications')
-    .insert({
-      type: n.type,
-      title: n.title,
-      body: n.body,
-      listing_id: n.listingId,
-      channel: 'in_app',
-      dedup_key: n.dedupKey,
-    });
-  if (error) {
-    if (error.code === '23505') return false; // déjà notifiée : pas de répétition
-    throw new Error(error.message);
-  }
-  return true;
-}
+export const createNotification = (n: { type: string; title: string; body: string; listingId: string | null; dedupKey: string }): Promise<boolean> =>
+  createNotificationWith(db(), n);
 
 export async function fetchNotifications(limit = 100): Promise<NotificationRow[]> {
   const { data, error } = await db()

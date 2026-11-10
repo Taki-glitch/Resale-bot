@@ -1,6 +1,6 @@
 # RESALE BOT — Architecture technique
 
-**Version de référence : V0.4 (0.4.0)**  
+**Version de référence : V0.5 (0.5.0)**  
 **Application :** https://taki-glitch.github.io/Resale-bot/#/  
 **Dépôt :** https://github.com/Taki-glitch/Resale-bot
 
@@ -115,6 +115,13 @@ marge (bénéfice et rendement face aux seuils) ; demande (ventes réalisées su
 - Opérations multi-tables **atomiques** : `record_purchase`, `record_sale` (fonctions SQL SECURITY INVOKER ; RLS et déclencheurs de propriétaire restent actifs).
 - Photos : compartiment privé `photos`, politiques limitées au dossier de l'utilisateur, liens signés temporaires côté application.
 
+### V0.5 : pilotage et automatisation
+- `src/lib/store.ts` : accès aux données **indépendant du navigateur** (client en paramètre, `scope.userId` pour la clé service) ; partagé par l'application et la tâche planifiée.
+- `worker/run.ts` : maintenance planifiée (GitHub Actions) — réévaluation, alertes de stock, Telegram facultatif. Verrou (`acquire_job_lock`), erreurs isolées par utilisateur, journal `job_runs`, déduplication par clés uniques. La clé `service_role` ignore la RLS : chaque requête porte donc explicitement `user_id`.
+- `worker/connectors.ts` : interface des sources d'annonces **autorisées** ; registre vide, aucune collecte sur les plateformes.
+- `core/stats.ts`, `core/backup.ts` (validation et préparation d'une restauration), `core/retry.ts`, `core/telegram.ts`, `core/price.ts`, `core/audit.ts`.
+- Restauration : identifiants conservés, `user_id` forcé, ordre des tables respectant les dépendances, aucune suppression, rejouable.
+
 ## 6. Données et sécurité
 
 - Les montants sont stockés en centimes entiers pour éviter les erreurs d'arrondi.
@@ -134,6 +141,7 @@ Frontend (variables de build GitHub Actions ou fichier `.env` local) :
 
 Serveur Supabase (secrets de la fonction) :
 
+- Tâche planifiée (secrets GitHub uniquement) : `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `TELEGRAM_BOT_TOKEN` (facultatif), variable `APP_URL`.
 - `ANTHROPIC_API_KEY` (obligatoire) et `AI_MODEL` (facultatif, défaut `claude-sonnet-5-5`) : seuls noms lus par la fonction `analyze-listing`.
 
 Ne jamais préfixer un secret serveur par `VITE_`. Ne jamais committer un vrai fichier `.env`.
@@ -145,6 +153,7 @@ Les migrations SQL sont appliquées dans l'ordre numérique :
 1. `supabase/migrations/0001_init.sql`
 2. `supabase/migrations/0002_v02.sql`
 3. `supabase/migrations/0003_v03.sql`
+6. `supabase/migrations/0006_v05.sql` (verrou de tâches, journal d'exécution, index de l'historique des prix)
 5. `supabase/migrations/0005_v04.sql` (achats et ventes atomiques, vue des ventes, photos)
 4. `supabase/migrations/0004_hardening.sql` (déclencheurs de propriétaire, protection des produits, comparables enrichis, nom de recherche unique)
 

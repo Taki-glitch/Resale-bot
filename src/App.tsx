@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth.tsx';
 import { isConfigured } from './lib/supabase.ts';
@@ -6,13 +7,15 @@ import Login from './pages/Login.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import SettingsPage from './pages/SettingsPage.tsx';
 import Listings from './pages/Listings.tsx';
-import ListingDetail from './pages/ListingDetail.tsx';
-import CalculatorPage from './pages/CalculatorPage.tsx';
-import Opportunities from './pages/Opportunities.tsx';
-import Notifications from './pages/Notifications.tsx';
-import Inventory from './pages/Inventory.tsx';
-import InventoryDetail from './pages/InventoryDetail.tsx';
-import Sales from './pages/Sales.tsx';
+const ListingDetail = lazy(() => import('./pages/ListingDetail.tsx'));
+const CalculatorPage = lazy(() => import('./pages/CalculatorPage.tsx'));
+const Opportunities = lazy(() => import('./pages/Opportunities.tsx'));
+const Notifications = lazy(() => import('./pages/Notifications.tsx'));
+const Inventory = lazy(() => import('./pages/Inventory.tsx'));
+const InventoryDetail = lazy(() => import('./pages/InventoryDetail.tsx'));
+const Sales = lazy(() => import('./pages/Sales.tsx'));
+const Stats = lazy(() => import('./pages/Stats.tsx'));
+const Journal = lazy(() => import('./pages/Journal.tsx'));
 
 function Guard() {
   const { session, loading } = useAuth();
@@ -36,6 +39,7 @@ export default function App() {
   return (
     <AuthProvider>
       <HashRouter>
+        <Suspense fallback={<div className="p-6 text-sm text-slate-500">Chargement…</div>}>
         <Routes>
           <Route element={<Guard />}>
             <Route index element={<Dashboard />} />
@@ -47,11 +51,14 @@ export default function App() {
             <Route path="inventaire/:id" element={<InventoryDetail />} />
             <Route path="reventes" element={<Inventory mode="resale" />} />
             <Route path="ventes" element={<Sales />} />
+            <Route path="statistiques" element={<Stats />} />
+            <Route path="journal" element={<Journal />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="parametres" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
+        </Suspense>
       </HashRouter>
     </AuthProvider>
   );

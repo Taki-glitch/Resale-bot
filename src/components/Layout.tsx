@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useUnreadCount } from '../hooks/useUnreadCount.ts';
 import {
-  Bell, Calculator, LayoutDashboard, Package, Receipt, Search, Settings, Sparkles, Tag,
+  BarChart3, Bell, Calculator, History, LayoutDashboard, Package, Receipt, Search, Settings, Sparkles, Tag,
 } from 'lucide-react';
 
 const items = [
@@ -12,7 +12,9 @@ const items = [
   { to: '/inventaire', label: 'Inventaire', icon: Package },
   { to: '/reventes', label: 'Reventes', icon: Tag },
   { to: '/ventes', label: 'Ventes', icon: Receipt },
+  { to: '/statistiques', label: 'Statistiques', icon: BarChart3 },
   { to: '/notifications', label: 'Notifications', icon: Bell },
+  { to: '/journal', label: 'Journal', icon: History },
   { to: '/parametres', label: 'Paramètres', icon: Settings },
 ];
 
