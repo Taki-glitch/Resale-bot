@@ -1,5 +1,6 @@
 import { db } from './db.ts';
 import { createNotification } from './notifications.ts';
+import { logActivity } from './audit.ts';
 import type { SaleView } from '../core/inventory.ts';
 
 /** Enregistre une vente : vente + statut « vendu » + fiche de revente clôturée, en une seule transaction côté base. */
@@ -24,6 +25,7 @@ export async function recordSale(a: {
   });
   if (error) throw new Error(error.message);
   const saleId = data as string;
+  await logActivity('sale_recorded', 'sale', saleId, { inventoryId: a.inventoryId, priceCents: a.priceCents });
   try {
     await createNotification({
       type: 'sale_recorded',

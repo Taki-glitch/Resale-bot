@@ -1,6 +1,9 @@
 import { db } from './db.ts';
 import { fingerprint, parseListingUrl } from '../core/listing.ts';
 import { shouldDeleteProduct } from '../core/deletion.ts';
+import { priceChange } from '../core/price.ts';
+import { logActivity } from './audit.ts';
+import { createNotification } from './notifications.ts';
 import { confidenceLevelOf } from '../core/evaluation.ts';
 import type { SearchableListing } from '../core/search.ts';
 import type { Listing, ListingDetail, ListingWithMeta, ComparableRow, AnalysisRow, OpportunityRow, ProductRow, Platform } from '../types.ts';
@@ -73,6 +76,9 @@ export async function createListing(input: NewListingInput): Promise<string> {
     if (lErr.code === '23505') throw new Error('Cette annonce est déjà importée (identifiant identique).');
     throw new Error(lErr.message);
   }
+  if (input.priceCents !== null) {
+    await client.from('price_history').insert({ listing_id: listing.id, price_cents: input.priceCents }); // prix initial (complément : sans blocage)
+  }
   return listing.id as string;
 }
 
@@ -135,6 +141,7 @@ export async function deleteListing(id: string, productId: string | null): Promi
   const client = db();
   const { error } = await client.from('listings').delete().eq('id', id);
   if (error) throw new Error(error.message);
+  await logActivity('listing_deleted', 'listing', id, { productId });
   if (!productId) return;
   const l = await client.from('listings').select('id', { count: 'exact', head: true }).eq('product_id', productId);
   const i = await client.from('inventory').select('id', { count: 'exact', head: true }).eq('product_id', productId);
@@ -189,6 +196,8 @@ export async function updateListing(id: string, productId: string | null, input:
   const url = orNull(input.url);
   const parsed = url ? parseListingUrl(url) : null;
   const hash = fingerprint({ url, title: input.title, priceCents: input.priceCents });
+  const before = await client.from('listings').select('price_cents').eq('id', id).maybeSingle();
+  const oldPrice = (before.data?.price_cents ?? null) as number | null;
 
   const { data: dup, error: dupErr } = await client
     .from('listings')
@@ -217,6 +226,24 @@ export async function updateListing(id: string, productId: string | null, input:
     if (error.code === '23505') throw new Error('Une autre annonce possède déjà cet identifiant.');
     throw new Error(error.message);
   }
+  const change = priceChange(oldPrice, input.priceCents);
+  if (change.changed && input.priceCents !== null) {
+    await client.from('price_history').insert({ listing_id: id, price_cents: input.priceCents });
+    await logActivity('price_changed', 'listing', id, { from: oldPrice, to: input.priceCents });
+    if (change.dropped) {
+      try {
+        await createNotification({
+          type: 'price_drop',
+          title: `Baisse de prix : ${input.title.trim()}`,
+          body: `Nouveau prix ${(input.priceCents / 100).toFixed(2)} € (${change.pct === null ? '' : `${change.pct} %`}). L'évaluation a été recalculée.`,
+          listingId: id,
+          dedupKey: `price:${id}:${input.priceCents}`,
+        });
+      } catch {
+        /* notification facultative */
+      }
+    }
+  }
   if (productId) {
     const p = await client
       .from('products')
@@ -234,4 +261,16 @@ export async function updateListing(id: string, productId: string | null, input:
 export async function updateListingPhotos(id: string, paths: string[]): Promise<void> {
   const { error } = await db().from('listings').update({ photos: paths }).eq('id', id);
   if (error) throw new Error(error.message);
+}
+
+export interface PriceHistoryRow {
+  id: string;
+  price_cents: number;
+  observed_at: string;
+}
+
+export async function fetchPriceHistory(listingId: string): Promise<PriceHistoryRow[]> {
+  const { data, error } = await db().from('price_history').select('id, price_cents, observed_at').eq('listing_id', listingId).order('observed_at', { ascending: false }).limit(50);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PriceHistoryRow[];
 }
