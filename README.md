@@ -4,7 +4,7 @@ Assistant d'aide à l'achat-revente : estime la valeur de revente d'annonces de 
 
 **Les estimations ne sont jamais des bénéfices garantis. Aucun achat n'est exécuté automatiquement. Rien n'est inventé : sans données suffisantes, une annonce est « non évaluable ».**
 
-## État : V0.4 (0.4.0)
+## État : V0.5 (0.5.0)
 - Saisie manuelle d'annonces (aucune collecte automatique : aucune source autorisée n'est configurée), modification, suppression sécurisée.
 - Recherche, filtres (mot-clé, catégorie, marque, prix, bénéfice, marge, score, confiance, statut), tris et **recherches enregistrées** (stockées dans Supabase).
 - Comparables (prix affichés ≠ ventes réalisées) avec pertinence, état, marque, modèle, taille ; estimation pondérée, « Estimation indisponible » si les données manquent.
@@ -15,7 +15,9 @@ Assistant d'aide à l'achat-revente : estime la valeur de revente d'annonces de 
 
 - **V0.4** : achats réels (jamais automatiques), inventaire avec photos, préparation de revente, enregistrement des ventes, bénéfice réalisé, tableau de bord financier, exports CSV et sauvegarde JSON.
 
-À venir : Telegram, sources autorisées, tests de bout en bout. Voir `docs/ROADMAP.md`.
+- **V0.5** : statistiques, historique des prix, journal d'activité, sauvegarde et **restauration**, maintenance planifiée (réévaluation, alertes de stock, Telegram facultatif), écran d'erreur, procédure de mise en production.
+
+Aucune collecte automatique sur les plateformes : seules des sources **autorisées** pourront être branchées (`worker/connectors.ts`). Voir `docs/ROADMAP.md`.
 
 ## Variables d'environnement
 | Variable | Où | Rôle |
@@ -24,9 +26,11 @@ Assistant d'aide à l'achat-revente : estime la valeur de revente d'annonces de 
 | `VITE_SUPABASE_ANON_KEY` | secret GitHub Actions + `.env` local | clé publique (la protection vient des politiques RLS) |
 | `ANTHROPIC_API_KEY` | **secret Supabase uniquement** (Edge Functions → Secrets) | clé du service d'IA, jamais dans le frontend |
 | `AI_MODEL` | secret Supabase (facultatif) | modèle d'IA, défaut `claude-sonnet-5-5` |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | secrets GitHub (maintenance planifiée) | clé « service » : **jamais** dans le frontend |
+| `TELEGRAM_BOT_TOKEN`, `APP_URL` | secret / variable GitHub (facultatifs) | notifications Telegram |
 
 ## Mise en service
-1. **Supabase → SQL Editor** : exécuter dans l'ordre `supabase/migrations/0001_init.sql`, `0002_v02.sql`, `0003_v03.sql`, `0004_hardening.sql`, `0005_v04.sql` (les migrations déjà appliquées peuvent être ignorées).
+1. **Supabase → SQL Editor** : exécuter dans l'ordre `supabase/migrations/0001_init.sql`, `0002_v02.sql`, `0003_v03.sql`, `0004_hardening.sql`, `0005_v04.sql`, `0006_v05.sql` (les migrations déjà appliquées peuvent être ignorées).
 2. **Fonction IA** : Edge Functions → Deploy a new function → Via Editor, nom `analyze-listing`, coller `supabase/functions/analyze-listing/index.ts`. Ajouter le secret `ANTHROPIC_API_KEY`. Si l'appel renvoie « Invalid JWT », désactiver « Verify JWT » (la fonction vérifie elle-même l'utilisateur). **Tant qu'elle n'est pas déployée, l'analyse IA ne fonctionne pas** ; le reste de l'application fonctionne.
 3. **GitHub Pages** : Settings → Pages → Source « GitHub Actions » ; secrets `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` ; le workflow `deploy.yml` teste, construit et déploie à chaque fusion sur `main`.
 4. **Supabase → Authentication → URL Configuration** : Site URL `https://<utilisateur>.github.io/<dépôt>/`.
@@ -38,12 +42,15 @@ npm test          # tests unitaires (Node)
 npm run typecheck # TypeScript strict
 npm run build     # build Vite
 npm run dev
+npm run worker    # maintenance planifiée (nécessite SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY)
 ```
 
 ## Structure
 ```
 src/core/         logique métier pure et testée (calculs, estimation, score, évaluation, recherche, notifications)
-src/services/     accès Supabase
+src/services/     accès Supabase (navigateur)
+src/lib/store.ts  accès Supabase indépendant du navigateur (application + worker)
+worker/           maintenance planifiée et connecteurs de sources autorisées
 src/lib/          utilitaires (évaluation depuis la base, images, libellés)
 src/components/   composants
 src/pages/        écrans
